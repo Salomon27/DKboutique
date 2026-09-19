@@ -1,5 +1,6 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
+import { enableAutoSync } from './auto-sync.js';
 import { createEmptyState } from './page-utils.js';
 
 const zoneName = document.getElementById('zoneName');
@@ -99,6 +100,12 @@ async function init() {
   const user = await auth.requireRole(['gerant']);
   if (!user) return;
   addZoneBtn.addEventListener('click', addZone);
+  // Never overwrite names typed into the zone editor while refreshing.
+  enableAutoSync(() => loadZones(), {
+    tables: ['zones'], intervalMs: 60000,
+    shouldRefresh: () => !zoneName.value.trim() && !document.activeElement?.matches('input, textarea, select')
+      && [...zoneList.querySelectorAll('input')].every(field => field.value === field.defaultValue)
+  });
   try { await loadZones(); }
   catch (err) {
     console.error(err);
