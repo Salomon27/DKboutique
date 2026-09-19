@@ -177,7 +177,7 @@
     .stage-preview .dispatch-form-area,.stage-queue .dispatch-form-area { flex: 0 0 auto; }
     .stage-preview .dispatch-main,.stage-queue .dispatch-main { padding-bottom: 0; }
     .stage-preview .dispatch-list-panel { padding-bottom: 110px; }
-    .stage-select .dispatch-footer,.stage-capture .dispatch-footer,.stage-preview .dispatch-footer { display: none!important; }
+    .stage-select .dispatch-footer,.stage-capture .dispatch-footer { display: none!important; }
     @keyframes compactReveal { from { opacity: .4; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes cameraShrink { from { opacity: .65; transform: scale(.91); } to { opacity: 1; transform: scale(1); } }
     @keyframes revealList { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
@@ -233,7 +233,7 @@
     .stage-queue .dispatch-note-row .form-control,.stage-preview .dispatch-note-row .form-control,
     .stage-queue .compact-add.btn,.stage-preview .compact-add.btn {height:37px;min-height:37px;border-radius:9px;}
     .stage-queue .compact-add.btn,.stage-preview .compact-add.btn {width:102px;font-size:.68rem;}
-    .stage-queue .dispatch-status,.stage-preview .dispatch-status {padding:3px 1px 0;font-size:.58rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .stage-queue .dispatch-status,.stage-preview .dispatch-status {display:none;}
     .stage-queue .dispatch-list-panel,.stage-preview .dispatch-list-panel {padding:8px 10px 110px;}
     .dispatch-photo-grid {grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
     .dispatch-photo-grid .photo-card {min-width:0;border-radius:11px;}
@@ -263,6 +263,7 @@
     }
     .dispatch-footer #validateAllBtn span {font-size:1.25rem;line-height:1;}
     .dispatch-footer #validateAllBtn:disabled {background:#9CB6E3!important;color:#FFF!important;opacity:.8;}
+    .dispatch-footer #validateAllBtn:not(:disabled):active {transform:scale(.99);}
     body.dispatch-page .bottom-nav {display:none!important;}
 
     .preview-zoom {position:absolute;z-index:3;right:4px;top:4px;padding:5px 6px;border:0;border-radius:6px;
@@ -301,7 +302,7 @@
   <main class="dispatch-main">
     <section class="dispatch-form-area" aria-label="Préparer une tournée">
       <div class="identity-intro">
-        <span class="eyebrow">PRÉPARATION D'UNE TOURNÉE</span>
+        <span class="eyebrow">NOUVELLE TOURNÉE</span>
         <h2>Choisir un livreur</h2>
       </div>
       <div class="dispatch-identity">
@@ -384,7 +385,7 @@
     <div id="parcelViewerNote" class="parcel-viewer-note"></div>
   </div>
 
-  <script type="module" src="js/dispatch.js?v=10"></script>
+  <script type="module" src="js/dispatch.js?v=11"></script>
   <script type="module" src="js/navigation.js?v=2"></script>
 </body>
 </html>
