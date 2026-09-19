@@ -50,7 +50,11 @@ async function loadLivreur() {
     .maybeSingle();
 
   if (error) throw error;
-  if (!data) throw new Error('Livreur introuvable.');
+  if (!data) {
+    // Le profil peut avoir ete desactive depuis une autre tablette.
+    window.location.replace('livreurs.html');
+    throw new Error('Livreur indisponible ou desactive.');
+  }
 
   livreur = data;
 
@@ -189,8 +193,11 @@ async function init() {
   try {
     await loadZones();
     await Promise.all([loadLivreur(), loadHistory()]);
-    enableAutoSync(() => loadHistory(), {
-      tables: ['sorties', 'colis'], intervalMs: 30000,
+    enableAutoSync(async () => {
+      await loadLivreur();
+      await loadHistory();
+    }, {
+      tables: ['livreurs', 'sorties', 'colis'], intervalMs: 30000,
       shouldRefresh: () => !document.activeElement?.matches('input, textarea, select')
     });
   } catch (err) {
