@@ -553,19 +553,52 @@ async function validateAllColis() {
             if (!colis.source) colis.source = defaultSource;
         });
 
-        // Etape 2: Stratégie de compensation pour chaque colis
+        // Un UUID stable permet de reprendre sans doublon après une réponse réseau perdue.
+        async function alreadySaved(colis, photoPath) {
+            const { data, error } = await supabase.from('colis')
+                .select('id, sortie_id, photo_path, valeur')
+                .eq('id', colis.id).maybeSingle();
+            if (error) throw error;
+            if (!data) return false;
+            if (data.sortie_id !== currentSortieId ||
+                data.photo_path !== photoPath ||
+                Number(data.valeur) !== Number(colis.valeur)) {
+                throw new Error('Un colis enregistré porte un identifiant contradictoire. Contrôle manuel requis.');
+            }
+            return true;
+        }
+
+        function markSaved(colis) {
+            colis.status = 'saved';
+            successCount++;
+            progressCount.textContent = `${successCount} / ${totalCount}`;
+            progressBar.style.width = `${(successCount / totalCount) * 100}%`;
+        }
+
+        // Une réponse d'upload/insertion peut se perdre même quand le serveur a enregistré.
         for (const colis of pendingToProcess) {
             const photoPath = `sorties/${currentSortieId}/${colis.id}.jpg`;
-            
-            // A. Upload Storage
+            failureStage = `vérification colis ${successCount + 1}/${totalCount}`;
+            if (await alreadySaved(colis, photoPath)) {
+                markSaved(colis);
+                continue;
+            }
+
             failureStage = `photo ${successCount + 1}/${totalCount}`;
             const { error: uploadError } = await supabase.storage
                 .from('colis-photos')
-                .upload(photoPath, colis.file);
-                
-            if (uploadError) throw uploadError;
+                .upload(photoPath, colis.file, { upsert: false });
 
-            // B. Insertion BDD
+            if (uploadError) {
+                // Un doublon d'objet peut venir d'un enregistrement qui a réussi
+                // avant la perte de connexion. Ne pas écraser la photo existante.
+                if (await alreadySaved(colis, photoPath)) {
+                    markSaved(colis);
+                    continue;
+                }
+                throw uploadError;
+            }
+
             failureStage = `colis ${successCount + 1}/${totalCount}`;
             const { error: insertError } = await supabase
                 .from('colis')
@@ -578,19 +611,23 @@ async function validateAllColis() {
                     statut_livreur: 'en_attente',
                     source: colis.source
                 }]);
-                
+
             if (insertError) {
-                // COMPENSATION : Suppression de la photo orpheline
-                await supabase.storage.from('colis-photos').remove([photoPath]);
+                // Ne jamais supprimer la photo d'un colis finalement enregistré
+                // si seule la réponse serveur a été perdue.
+                if (await alreadySaved(colis, photoPath)) {
+                    markSaved(colis);
+                    continue;
+                }
+                const { error: cleanupError } = await supabase.storage
+                    .from('colis-photos').remove([photoPath]);
+                if (cleanupError) {
+                    throw new Error(`${insertError.message || 'Enregistrement non confirmé'} · Nettoyage photo impossible : ${cleanupError.message || 'vérifier le dossier'}`);
+                }
                 throw insertError;
             }
 
-            colis.status = 'saved';
-
-            // Mise à jour de la progression
-            successCount++;
-            progressCount.textContent = `${successCount} / ${totalCount}`;
-            progressBar.style.width = `${(successCount / totalCount) * 100}%`;
+            markSaved(colis);
         }
 
         // Succès complet
