@@ -1,5 +1,7 @@
 name: Deploy DK Boutique to GitHub Pages
 
+# Direct production deployment from main
+
 on:
   push:
     branches:
