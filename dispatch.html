@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dispatch - DK Boutique</title>
+    <meta name="theme-color" content="#f8fafc">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Intégration GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        body {
+            /* Support mobile PWA: 100dvh permet d'éviter que le clavier ne détruise la mise en page */
+            height: 100dvh;
+            overflow: hidden; /* Empêcher le scroll sur le body pour avoir un container interne scrollable */
+            background-color: var(--bg-main);
+        }
+
+        .scrollable-content {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 120px; /* Espace pour le sticky footer */
+        }
+
+        .camera-container {
+            width: 100%;
+            aspect-ratio: 4/3;
+            background-color: var(--border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            position: relative;
+            margin-bottom: var(--space-3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #cameraPreview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .file-input-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .placeholder-icon {
+            font-size: 3rem;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        /* Checkbox Payé */
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: var(--space-2);
+            cursor: pointer;
+        }
+        
+        .checkbox-wrapper input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: var(--success);
+        }
+        .checkbox-wrapper span {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* Sticky Footer */
+        .sticky-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            padding: var(--space-3) var(--space-4);
+            box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.1);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+
+        .recap-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        /* Grid */
+        .photo-card {
+            /* Initial state for GSAP */
+            transform: scale(0.96);
+            opacity: 0;
+        }
+
+        .progress-container {
+            display: none;
+            width: 100%;
+            background-color: var(--border);
+            border-radius: 4px;
+            height: 6px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <div class="flex items-center gap-3">
+            <a href="dashboard-gerant.html" style="text-decoration: none; font-size: 1.5rem;">⬅️</a>
+            <div>
+                <h1 class="header-title" style="margin-bottom: 0;">Dispatch</h1>
+                <span class="text-sm text-muted">Préparer une tournée</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="scrollable-content container">
+        
+        <!-- Selection Livreur -->
+        <div class="card mb-4">
+            <div class="form-group mb-2">
+                <label for="livreurSelect">Livreur</label>
+                <select id="livreurSelect" class="form-control" style="font-size: 1.1rem; padding: 0.75rem;">
+                    <option value="">-- Choisir un livreur --</option>
+                </select>
+            </div>
+            
+            <div id="zoneContainer" class="hidden">
+                <p class="text-sm text-muted">Zone de livraison : <strong id="zoneDisplay" style="color: var(--text-main);"></strong></p>
+                <p id="tourneeStatus" class="text-sm mt-1 font-bold"></p>
+            </div>
+        </div>
+
+        <!-- Formulaire d'ajout de colis -->
+        <div class="card mb-4" id="colisFormContainer" style="opacity: 0.5; pointer-events: none; transition: opacity 0.3s;">
+            <h3 style="font-size: 1.1rem;">Nouveau Colis</h3>
+            
+            <div class="camera-container mt-3">
+                <div class="placeholder-icon" id="photoPlaceholder">📷 Prendre Photo</div>
+                <img id="cameraPreview" alt="Aperçu">
+                <!-- Accept capture for mobile devices -->
+                <input type="file" id="photoInput" accept="image/*" capture="environment" class="file-input-overlay">
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="montantInput">Montant à récupérer</label>
+                
+                <label class="checkbox-wrapper mt-2 mb-2">
+                    <input type="checkbox" id="isPaidCheckbox">
+                    <span style="color: var(--success);">Colis déjà payé</span>
+                </label>
+
+                <input type="number" inputmode="numeric" id="montantInput" class="form-control" placeholder="Ex: 15000" style="font-size: 1.2rem;">
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="noteInput">Note (Facultatif)</label>
+                <input type="text" id="noteInput" class="form-control" placeholder="Observation...">
+            </div>
+
+            <button id="addColisBtn" class="btn btn-outline" style="width: 100%; border-width: 2px;">+ AJOUTER LE COLIS</button>
+        </div>
+
+        <!-- Grille des colis locaux -->
+        <h3 class="mb-3 flex justify-between items-center" id="gridTitle" style="display: none;">
+            Panier temporaire
+        </h3>
+
+        <div id="localColisGrid" class="photo-grid mb-4">
+            <!-- Injecté en JS -->
+        </div>
+
+    </div>
+
+    <!-- Sticky Footer pour Validation -->
+    <div class="sticky-footer" id="stickyFooter" style="display: none;">
+        <div class="recap-row">
+            <span class="text-muted"><span id="localColisCount">0</span> COLIS</span>
+            <span class="text-lg" id="localTotal" style="color: var(--primary);">0 F</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center;" id="progressStatusContainer" class="hidden">
+            <span id="progressText" class="text-sm font-bold">Envoi...</span>
+            <span id="progressCount" class="text-sm">0/0</span>
+        </div>
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <button id="validateAllBtn" class="btn btn-primary" style="padding: 1rem; font-size: 1.1rem;">
+            VALIDER TOUT
+        </button>
+    </div>
+
+    <script type="module" src="js/dispatch.js?v=6"></script>
+</body>
+</html>

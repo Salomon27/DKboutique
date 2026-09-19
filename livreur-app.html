@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ma Tournée - DK Boutique</title>
+    <meta name="theme-color" content="#f8fafc">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        body {
+            height: 100dvh;
+            overflow: hidden;
+            background-color: var(--bg-main);
+        }
+
+        .scrollable-content {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 30px;
+        }
+
+        /* En-tête Tournée (Sticky interne si on veut, mais ici fluide) */
+        .tournee-header {
+            background-color: var(--primary);
+            color: white;
+            padding: var(--space-4);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-4);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Cartes Colis - Mobile First */
+        .colis-card {
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            overflow: hidden;
+            background-color: var(--bg-card);
+            border: 2px solid transparent;
+            transition: border-color 0.3s;
+        }
+
+        .colis-card.statut-livre {
+            border-color: var(--success);
+            background-color: rgba(16, 185, 129, 0.05);
+        }
+
+        .colis-card.statut-retourne {
+            border-color: var(--danger);
+            background-color: rgba(239, 68, 68, 0.05);
+        }
+
+        .photo-container {
+            width: 100%;
+            height: 250px; /* Grande photo ! */
+            background-color: var(--border);
+            position: relative;
+        }
+
+        .photo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            cursor: zoom-in;
+        }
+
+        .colis-info {
+            padding: var(--space-3);
+        }
+
+        /* Boutons 56px minimum */
+        .action-btn {
+            height: 56px;
+            font-size: 1.1rem;
+            flex: 1;
+        }
+
+        /* Zoom Photo Plein Écran */
+        .fullscreen-viewer {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            cursor: zoom-out;
+            opacity: 0;
+        }
+        .fullscreen-viewer img {
+            max-width: 95%;
+            max-height: 95%;
+            object-fit: contain;
+            border-radius: var(--radius-md);
+        }
+
+        /* Banner Hors Ligne */
+        #offlineBanner {
+            background-color: var(--danger);
+            color: white;
+            text-align: center;
+            padding: var(--space-2);
+            font-weight: bold;
+            display: none;
+        }
+
+        /* Notifications Realtime (discrètes) */
+        #toastContainer {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            background: var(--text-main);
+            color: var(--bg-main);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            opacity: 0;
+            box-shadow: var(--shadow-md);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="offlineBanner">HORS LIGNE</div>
+
+    <header class="app-header">
+        <h1 class="header-title" style="margin:0;">MA TOURNÉE</h1>
+        <button id="logoutBtn" class="btn btn-outline" style="width:auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;">PROFIL / QUITTER</button>
+    </header>
+
+    <div class="scrollable-content container" id="appContent">
+        
+        <div id="loader" class="flex flex-col items-center justify-center mt-8">
+            <div class="loader loader-dark"></div>
+            <p class="mt-4 text-muted">Chargement...</p>
+        </div>
+
+        <div id="noTourneeState" class="card text-center hidden mt-4">
+            <h2 class="text-lg">Aucune tournée en cours</h2>
+            <p class="text-muted text-sm mt-2">Vos nouveaux colis apparaîtront ici automatiquement.</p>
+        </div>
+
+        <div id="activeTourneeState" class="hidden">
+            <div class="tournee-header">
+                <div class="text-sm opacity-80 mb-1">ZONE</div>
+                <div class="font-bold text-lg mb-3" id="zoneName">...</div>
+                
+                <div class="text-sm opacity-80 mb-1">TOTAL À VERSER</div>
+                <h2 class="font-bold" style="font-size: 2.2rem; margin: 0;" id="totalVerser">0 F</h2>
+            </div>
+            
+            <h3 class="mb-3 flex justify-between items-center text-lg">
+                <span id="progressText">0 / 0 traités</span>
+            </h3>
+
+            <div id="colisList" class="flex flex-col gap-4">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Visionneuse Plein Écran -->
+    <div class="fullscreen-viewer" id="fullscreenViewer">
+        <img id="fullscreenImg" src="">
+    </div>
+
+    <!-- Toasts (Realtime) -->
+    <div id="toastContainer"></div>
+
+    <script type="module" src="js/livreur.js?v=7"></script>
+</body>
+</html>

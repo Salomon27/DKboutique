@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dashboard Gérant - DK Boutique</title>
+    <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="manifest.json">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <header class="app-header">
+        <h1 class="header-title">Gérant</h1>
+        <button id="logoutBtn" class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">Sortir</button>
+    </header>
+
+    <div class="container">
+        
+        <div class="card mb-4" style="background-color: var(--primary); color: white; border-color: var(--primary);">
+            <div class="text-sm opacity-80">ARGENT DEHORS (ESTIMÉ)</div>
+            <h2 class="font-bold mt-1" style="font-size: 2rem; margin: 0;" id="argentDehors">0 F</h2>
+            <div class="flex justify-between mt-3 text-sm opacity-90">
+                <span><span id="tourneesEnCoursCount" class="font-bold">0</span> tournées en cours</span>
+                <span><span id="colisEnCoursCount" class="font-bold">0</span> colis</span>
+            </div>
+        </div>
+
+        <h3 class="mb-3">Actions</h3>
+        
+        <div class="photo-grid mb-4">
+            <a href="dispatch.html" class="card flex flex-col items-center justify-center gap-2" style="text-decoration: none; padding: var(--space-4) var(--space-2);">
+                <div style="font-size: 2rem; color: var(--primary);">➕</div>
+                <div class="font-bold text-center" style="color: var(--text-main);">Nouveau<br>Départ</div>
+            </a>
+            <a href="point.html" class="card flex flex-col items-center justify-center gap-2" style="text-decoration: none; padding: var(--space-4) var(--space-2);">
+                <div style="font-size: 2rem; color: var(--warning);">💰</div>
+                <div class="font-bold text-center" style="color: var(--text-main);">Le Point<br>(Retour/Fin)</div>
+            </a>
+            <a href="archives.html" class="card flex flex-col items-center justify-center gap-2" style="text-decoration: none; padding: var(--space-4) var(--space-2);">
+                <div style="font-size: 2rem; color: var(--text-muted);">🗄️</div>
+                <div class="font-bold text-center" style="color: var(--text-main);">Archives</div>
+            </a>
+            <a href="equipe.html" class="card flex flex-col items-center justify-center gap-2" style="text-decoration: none; padding: var(--space-4) var(--space-2);">
+                <div style="font-size: 2rem; color: var(--success);">👥</div>
+                <div class="font-bold text-center" style="color: var(--text-main);">Équipe</div>
+            </a>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { auth } from './js/auth.js';
+        import { supabase } from './js/config.js';
+
+        async function init() {
+            await auth.requireRole(['gerant']);
+
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                auth.logout();
+            });
+
+            try {
+                // Utilisation de la nouvelle vue v_sorties_resume
+                const { data: resumes, error } = await supabase
+                    .from('v_sorties_resume')
+                    .select('net_a_encaisser, nb_colis_total')
+                    .eq('statut', 'en_cours');
+
+                if (error) throw error;
+
+                let totalArgent = 0;
+                let totalColis = 0;
+
+                resumes.forEach(r => {
+                    totalArgent += Number(r.net_a_encaisser);
+                    totalColis += Number(r.nb_colis_total);
+                });
+
+                document.getElementById('tourneesEnCoursCount').textContent = resumes.length;
+                document.getElementById('colisEnCoursCount').textContent = totalColis;
+                document.getElementById('argentDehors').textContent = totalArgent.toLocaleString('fr-FR') + ' F';
+
+            } catch (err) {
+                console.error("Erreur chargement dashboard:", err);
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

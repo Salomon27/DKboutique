@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DK Boutique - Connexion</title>
+    
+    <meta name="theme-color" content="#F4F7FB">
+    <link rel="manifest" href="manifest.json">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <!-- Inclusion de GSAP pour le motion design -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    
+
+    <style>
+        :root {
+            --bg: #F4F7FB;
+            --surface: #FFFFFF;
+            --surface-soft: #EEF4FF;
+            --primary: #2563EB;
+            --primary-soft: #DBEAFE;
+            --text-main: #0F172A;
+            --text-secondary: #64748B;
+            --border: #E2E8F0;
+            --danger: #DC2626;
+            --success: #16A34A;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at top left, #E8F0FF 0%, #F4F7FB 45%, #F8FAFC 100%);
+            color: var(--text-main);
+            min-height: 100dvh;
+            overflow: hidden;
+        }
+
+        .auth-shell {
+            min-height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .auth-card {
+            width: 100%;
+            max-width: 420px;
+            background: var(--surface);
+            border-radius: 28px;
+            border: 1px solid var(--border);
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.10);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            opacity: 0; /* Géré par GSAP au montage */
+        }
+
+        /* Hero SVG Area */
+        .hero-container {
+            width: 100%;
+            height: 240px;
+            background: #F8FAFC;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .auth-visual {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 240px;
+            overflow: hidden;
+        }
+
+        .motion-layer {
+            position: absolute;
+            pointer-events: none;
+            user-select: none;
+            will-change: transform, opacity;
+        }
+
+        /* Positions recommandées par l'utilisateur */
+        #managerLayer {
+            width: 35%;
+            left: 4%;
+            bottom: 2%;
+        }
+
+        #courierLayer {
+            width: 32%;
+            right: 2%;
+            bottom: 0;
+        }
+
+        #tabletLayer {
+            width: 42%;
+            left: 28%;
+            top: 15%;
+        }
+
+        #orderCardLayer {
+            width: 30%;
+            left: 38%;
+            top: 5%;
+        }
+
+        #parcelsLayer {
+            width: 28%;
+            right: 16%;
+            bottom: 4%;
+        }
+
+        #routeLayer {
+            width: 65%;
+            right: 4%;
+            bottom: 6%;
+            opacity: .7;
+        }
+
+        #processingLayer {
+            width: 15%;
+            left: 48%;
+            top: 18%;
+            opacity: 0;
+        }
+
+        #successLayer {
+            width: 13%;
+            left: 50%;
+            top: 20%;
+            opacity: 0;
+        }
+
+        /* Form Area */
+        .auth-content {
+            padding: 32px 24px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .brand-title {
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            margin-bottom: 4px;
+            color: var(--text-main);
+        }
+
+        .subtitle {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 16px;
+        }
+
+        .helper-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            line-height: 1.4;
+        }
+
+        /* PIN Input */
+        .pin-container {
+            width: 100%;
+            position: relative;
+            margin-bottom: 24px;
+        }
+
+        .pin-input {
+            width: 100%;
+            height: 64px;
+            border-radius: 16px;
+            border: 2px solid var(--border);
+            background: #F8FAFC;
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 0.5em;
+            color: var(--text-main);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            padding-left: 0.5em;
+        }
+
+        .pin-input:focus {
+            border-color: var(--primary);
+            background: #FFFFFF;
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.12);
+        }
+
+        .pin-input:disabled {
+            background: #F1F5F9;
+            color: var(--text-secondary);
+            opacity: 0.8;
+        }
+        
+        .pin-input.input-error {
+            border-color: var(--danger);
+            color: var(--danger);
+            animation: inputShake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        
+        @keyframes inputShake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(3px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-5px, 0, 0); }
+            40%, 60% { transform: translate3d(5px, 0, 0); }
+        }
+
+        .status-text {
+            height: 24px;
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: var(--primary);
+        }
+        .status-text.error { color: var(--danger); }
+
+        .mini-loader {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(37, 99, 235, 0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (min-width: 768px) {
+            .auth-card {
+                max-width: 900px;
+                flex-direction: row;
+                height: 540px;
+            }
+            .hero-container {
+                width: 50%;
+                height: 100%;
+                border-bottom: none;
+                border-right: 1px solid var(--border);
+            }
+            .auth-content {
+                width: 50%;
+                justify-content: center;
+                padding: 48px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="auth-shell" id="authShell">
+        <div class="auth-card">
+            
+            <div class="hero-container">
+                <div class="auth-visual" id="authVisual">
+                  <img src="assets/route.png" id="routeLayer" class="motion-layer route-layer" alt="">
+                  <img src="assets/parcels.png" id="parcelsLayer" class="motion-layer parcels-layer" alt="">
+                  <img src="assets/tablet.png" id="tabletLayer" class="motion-layer tablet-layer" alt="">
+                  <img src="assets/order-card.png" id="orderCardLayer" class="motion-layer order-card-layer" alt="">
+                  <img src="assets/manager.png" id="managerLayer" class="motion-layer manager-layer" alt="">
+                  <img src="assets/courier.png" id="courierLayer" class="motion-layer courier-layer" alt="">
+                  <img src="assets/processing.png" id="processingLayer" class="motion-layer processing-layer" alt="">
+                  <img src="assets/success.png" id="successLayer" class="motion-layer success-layer" alt="">
+                </div>
+            </div>
+            
+            <div class="auth-content">
+                <h1 class="brand-title">DK BOUTIQUE</h1>
+                <div class="subtitle">Connexion sécurisée</div>
+                
+                <p class="helper-text">Entrez votre code PIN pour accéder à votre espace de travail.</p>
+                
+                <form id="pinForm" style="width: 100%;">
+                    <div class="pin-container">
+                        <input
+                            type="password"
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            maxlength="4"
+                            autocomplete="one-time-code"
+                            class="pin-input"
+                            id="pinInput"
+                            placeholder="••••"
+                        />
+                    </div>
+                </form>
+
+                <div class="status-text" id="statusText">
+                    <!-- Text or loader injected by JS -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Scripts métier avec cache-busting pour forcer le rafraîchissement -->
+    <script type="module" src="js/config.js?v=5"></script>
+    <script type="module" src="js/auth.js?v=5"></script>
+    <script type="module" src="js/auth-motion.js?v=5"></script>
+    <script type="module" src="js/app.js?v=5"></script>
+</body>
+</html>
