@@ -119,7 +119,7 @@ for each row execute function public.dk_guard_inactive_tour_write();
 
 create or replace function public.dk_guard_suspended_sortie()
 returns trigger language plpgsql security definer set search_path = ''
-as $
+as $$
 declare v_active boolean;
 begin
   if tg_op = 'INSERT' then
@@ -235,7 +235,7 @@ $$;
 -- effectivement installee dans la base, pas seulement presente sur GitHub.
 create or replace function public.maintenance_owner_status()
 returns jsonb language plpgsql security definer set search_path = ''
-as $
+as $$
 begin
   if not dk_private.is_current_owner() then
     return jsonb_build_object('enabled',false);
@@ -246,7 +246,7 @@ begin
     'photos_pending', (select count(*) from dk_private.photo_cleanup)
   );
 end;
-$;
+$$;
 
 -- Empêcher les URL de photo nouvellement signee de contourner le masquage.
 drop policy if exists "dk_colis_authorized_photo_read" on storage.objects;
