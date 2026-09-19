@@ -233,6 +233,7 @@ async function loadDashboard() {
     elements.supervisionError.textContent=`Chargement impossible : ${error?.message||'vérifier votre connexion.'}`;
     elements.supervisionError.classList.remove('hidden');
     elements.lastRefresh.textContent='Actualisation échouée';
+    throw error;
   }finally{
     if(ticket===refreshSerial){
       loading=false;
@@ -277,7 +278,8 @@ async function init(){
   });
   elements.activeTab.addEventListener('click', () => selectTab(false));
   elements.closedTab.addEventListener('click', () => selectTab(true));
-  await loadDashboard();
+  try { await loadDashboard(); }
+  catch(error) { console.error('Premier chargement supervision:', error); }
   setupRealtime();
   enableAutoSync(() => loadDashboard(), { intervalMs: 30000, shouldRefresh: () => !document.querySelector('.dk-nav-backdrop.open') });
 }
