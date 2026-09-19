@@ -12,7 +12,7 @@ export function enableAutoSync(refresh, {
   let disposed = false;
   let running = false;
   let pending = false;
-  let lastSuccess = Date.now();
+  let lastSuccess = 0;
   let lastAttempt = 0;
   let retryTimer = null;
   let channel = null;
@@ -29,15 +29,16 @@ export function enableAutoSync(refresh, {
     badge.title = description;
     badge.textContent = type === 'offline' ? 'Hors ligne'
       : type === 'error' ? 'À vérifier'
-      : type === 'syncing' ? 'Synchronisation…' : 'À jour';
+      : type === 'syncing' ? 'Synchronisation…'
+      : type === 'ready' ? 'Auto' : 'À jour';
   }
 
   if (headerStatus) {
     const header = document.querySelector('.app-header');
     if (header) {
       header.appendChild(badge);
-      setState(navigator.onLine ? 'ok' : 'offline', navigator.onLine
-        ? 'Synchronisation automatique active' : 'Hors ligne : connexion nécessaire');
+      setState(navigator.onLine ? 'ready' : 'offline', navigator.onLine
+        ? 'Synchronisation automatique active · vérification à venir' : 'Hors ligne : connexion nécessaire');
     }
   }
 
@@ -52,6 +53,7 @@ export function enableAutoSync(refresh, {
       setState('offline', 'Hors ligne : la consultation peut être ancienne. Les enregistrements nécessitent Internet.');
       return;
     }
+    if (!canRead()) return;
     if (retryTimer) clearTimeout(retryTimer);
     retryTimer = setTimeout(() => run(reason), reason === 'change' ? 500 : 100);
   }
@@ -63,7 +65,10 @@ export function enableAutoSync(refresh, {
       pending = true;
       return;
     }
-    if (reason === 'focus' && Date.now() - lastSuccess < 7000 && !pending) return;
+    if (reason === 'focus' && lastSuccess && Date.now() - lastSuccess < 7000) {
+      pending = false;
+      return;
+    }
     if (reason === 'interval' && Date.now() - lastAttempt < 12000) return;
 
     running = true;
@@ -103,6 +108,8 @@ export function enableAutoSync(refresh, {
 
   // Browsers throttle background tabs; the return-to-app listener catches up.
   const interval = setInterval(() => schedule('interval'), Math.max(15000, intervalMs));
+  // Initial read also verifies connectivity; it never submits any business operation.
+  schedule('initial');
 
   if (tables.length) {
     channel = supabase.channel('dk-auto-' + Math.random().toString(36).slice(2));
