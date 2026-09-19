@@ -87,14 +87,22 @@ begin
   if tg_table_name = 'sortie_operations' then
     v_closure := new.type = 'cloture';
   end if;
-  select (l.actif and s.suspendue_at is null
-    and (s.statut = 'en_cours'
-      or (v_closure and s.statut = 'cloturee')))
-  into v_active
-  from public.sorties s
-  join public.livreurs l on l.id = s.livreur_id
-  where s.id = new.sortie_id
-  for share of l, s;
+  if v_closure then
+    -- La cloture verrouille deja la ligne sortie. Ne pas inverser l'ordre
+    -- des verrous avec une desactivation du livreur simultanee.
+    select (l.actif and s.suspendue_at is null and s.statut = 'cloturee')
+    into v_active
+    from public.sorties s join public.livreurs l on l.id = s.livreur_id
+    where s.id = new.sortie_id;
+  else
+    -- Verrou lecteur sur le livreur : une ecriture en cours finit avant
+    -- une suspension et aucune nouvelle ecriture ne peut la depasser.
+    select (l.actif and s.suspendue_at is null and s.statut = 'en_cours')
+    into v_active
+    from public.sorties s join public.livreurs l on l.id = s.livreur_id
+    where s.id = new.sortie_id
+    for share of l;
+  end if;
   if v_active is distinct from true then
     raise exception 'Tournee indisponible : livreur desactive ou tournee suspendue.';
   end if;
@@ -127,7 +135,7 @@ begin
   end if;
   if new.statut is distinct from old.statut then
     select l.actif into v_active
-    from public.livreurs l where l.id = old.livreur_id for share;
+    from public.livreurs l where l.id = old.livreur_id;
     if v_active is distinct from true or old.suspendue_at is not null then
       raise exception 'Statut bloque : livreur retire ou tournee suspendue.';
     end if;
