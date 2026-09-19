@@ -31,6 +31,7 @@ const signedUrlCache = new Map();
 let colisSubscription = null;
 let livreurSortiesSubscription = null;
 let realtimeRefreshTimer = null;
+let lastColisSignature = null;
 
 function formatFcfa(value) {
     return `${Number(value || 0).toLocaleString('fr-FR')} F`;
@@ -61,7 +62,7 @@ async function init() {
     });
 
     await loadProfileAndApp();
-    if (currentLivreurId) enableAutoSync(() => loadActiveSortie(), {
+    if (currentLivreurId) enableAutoSync(() => loadActiveSortie({ silent: true }), {
       intervalMs: 30000,
       shouldRefresh: () => !document.querySelector('.action-btn:disabled')
         && fullscreenViewer.style.display !== 'flex'
@@ -124,10 +125,12 @@ async function loadProfileAndApp() {
     }
 }
 
-async function loadActiveSortie() {
-    loader.classList.remove('hidden');
-    noTourneeState.classList.add('hidden');
-    activeTourneeState.classList.add('hidden');
+async function loadActiveSortie({ silent = false } = {}) {
+    if (!silent) {
+        loader.classList.remove('hidden');
+        noTourneeState.classList.add('hidden');
+        activeTourneeState.classList.add('hidden');
+    }
 
     try {
         const { data: sortie, error } = await supabase
@@ -143,6 +146,8 @@ async function loadActiveSortie() {
             currentSortieId = null;
             cleanupColisRealtime();
             colisList.replaceChildren();
+            lastColisSignature = null;
+            activeTourneeState.classList.add('hidden');
             resetSummary();
             loader.classList.add('hidden');
             noTourneeState.classList.remove('hidden');
@@ -162,9 +167,11 @@ async function loadActiveSortie() {
         }
 
         loader.classList.add('hidden');
+        noTourneeState.classList.add('hidden');
         activeTourneeState.classList.remove('hidden');
     } catch (err) {
         console.error(err);
+        if (silent) throw err;
         loader.replaceChildren();
         const message = document.createElement('p');
         message.className = 'text-muted text-sm';
@@ -221,9 +228,14 @@ async function loadColis() {
 
     if (error) throw error;
 
+    const rows = data || [];
+    const signature = JSON.stringify(rows.map(row => [
+        row.id, row.statut_livreur, row.photo_path, row.valeur, row.commentaire, row.source
+    ]));
+    if (signature === lastColisSignature && colisList.children.length) return;
+    lastColisSignature = signature;
     colisList.replaceChildren();
 
-    const rows = data || [];
     if (!rows.length) {
         const empty = document.createElement('div');
         empty.className = 'card text-center text-muted text-sm';
@@ -495,7 +507,7 @@ function scheduleFullRefresh(delay = 250) {
     clearTimeout(realtimeRefreshTimer);
     realtimeRefreshTimer = setTimeout(async () => {
         try {
-            await loadActiveSortie();
+            await loadActiveSortie({ silent: true });
         } catch (err) {
             console.error('Realtime refresh error:', err);
         }
