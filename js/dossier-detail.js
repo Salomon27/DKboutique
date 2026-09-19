@@ -82,7 +82,14 @@ function downloadCsv() {
     [],
     ['OPÉRATIONS ENREGISTRÉES'],
     ['Identifiant', 'Date', 'Type', 'Colis lié', 'Montant (F CFA)', 'Motif'],
-    ...ops.map(op => [op.id, formatDate(op.created_at, true), op.type, op.colis_id || '', money(op.montant), op.commentaire || ''])
+    ...ops.map(op => [op.id, formatDate(op.created_at, true), op.type, op.colis_id || '', money(op.montant), op.commentaire || '']),
+    [],
+    ['RECTIFICATIONS DE SAISIE (HORS TRANSACTIONS FINANCIÈRES)'],
+    ['Date', 'Colis corrigé', 'Motif', 'Valeur retirée (F CFA)', 'Net avant (F CFA)', 'Net corrigé (F CFA)'],
+    ...parcelCorrections.map(c => [
+      formatDate(c.cree_at, true), c.colis_id, c.motif, money(c.valeur),
+      money(c.montant_avant), money(c.montant_apres)
+    ])
   ];
 
   const csv = '\uFEFF' + rows
