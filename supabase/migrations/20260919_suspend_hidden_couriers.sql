@@ -231,6 +231,23 @@ begin
 end;
 $$;
 
+-- Le client ne peut activer le bouton de retrait qu'une fois la migration
+-- effectivement installee dans la base, pas seulement presente sur GitHub.
+create or replace function public.maintenance_owner_status()
+returns jsonb language plpgsql security definer set search_path = ''
+as $
+begin
+  if not dk_private.is_current_owner() then
+    return jsonb_build_object('enabled',false);
+  end if;
+  return jsonb_build_object(
+    'enabled', true,
+    'suspension_enabled', true,
+    'photos_pending', (select count(*) from dk_private.photo_cleanup)
+  );
+end;
+$;
+
 -- Empêcher les URL de photo nouvellement signee de contourner le masquage.
 drop policy if exists "dk_colis_authorized_photo_read" on storage.objects;
 create policy "dk_colis_authorized_photo_read" on storage.objects
