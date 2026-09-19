@@ -62,8 +62,15 @@ async function init() {
     });
 
     await loadProfileAndApp();
-    if (currentLivreurId) enableAutoSync(() => loadActiveSortie({ silent: true }), {
-      intervalMs: 30000,
+    if (currentLivreurId) enableAutoSync(async () => {
+      if (!await auth.checkActiveSession()) {
+        cleanupRealtime();
+        await auth.logout();
+        return;
+      }
+      await loadActiveSortie({ silent: true });
+    }, {
+      tables: ['livreurs', 'sorties', 'colis'], intervalMs: 30000,
       shouldRefresh: () => !document.querySelector('.action-btn:disabled')
         && fullscreenViewer.style.display !== 'flex'
     });
