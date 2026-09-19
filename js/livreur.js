@@ -1,5 +1,6 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
+import { enableAutoSync } from './auto-sync.js';
 
 const logoutBtn = document.getElementById('logoutBtn');
 const loader = document.getElementById('loader');
@@ -60,15 +61,18 @@ async function init() {
     });
 
     await loadProfileAndApp();
+    if (currentLivreurId) enableAutoSync(() => loadActiveSortie(), {
+      intervalMs: 30000,
+      shouldRefresh: () => !document.querySelector('.action-btn:disabled')
+        && fullscreenViewer.style.display !== 'flex'
+    });
 }
 
 function updateNetworkStatus() {
     isOffline = !navigator.onLine;
     offlineBanner.style.display = isOffline ? 'block' : 'none';
 
-    if (!isOffline && currentLivreurId) {
-        scheduleFullRefresh(100);
-    }
+    // Le module commun reprend automatiquement la lecture après reconnexion.
 }
 
 function showToast(message) {
