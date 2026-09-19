@@ -172,8 +172,8 @@ function selectTab(closed) {
   elements.closedPanel.classList.toggle('hidden', !closed);
   elements.activeTab.classList.toggle('active', !closed);
   elements.closedTab.classList.toggle('active', closed);
-  elements.activeTab.setAttribute('aria-pressed', String(!closed));
-  elements.closedTab.setAttribute('aria-pressed', String(closed));
+  elements.activeTab.setAttribute('aria-selected', String(!closed));
+  elements.closedTab.setAttribute('aria-selected', String(closed));
 }
 
 function populateZones() {
