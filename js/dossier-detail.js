@@ -1,5 +1,6 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
+import { enableAutoSync } from './auto-sync.js';
 import { formatFcfa, formatDate, getQueryParam, signedPhotoUrl, createEmptyState, createBadge } from './page-utils.js';
 
 const sortieId = getQueryParam('id');
@@ -417,6 +418,10 @@ async function init() {
     });
 
     await loadDossier();
+    enableAutoSync(() => loadDossier(), {
+      tables: ['sorties', 'colis', 'sortie_operations'], intervalMs: 30000,
+      shouldRefresh: () => !photoViewer.classList.contains('open')
+    });
   } catch (error) {
     console.error('Dossier:', error);
     auditDetails.replaceChildren();
