@@ -30,13 +30,20 @@ async function loadLivreurs() {
 }
 
 async function loadArchives() {
-  const { data, error } = await supabase
+  const role = await auth.getCurrentRole();
+  let query = supabase
     .from('v_sorties_resume')
     .select('*')
     .eq('statut', 'cloturee')
     .order('closed_at', { ascending: false })
     .limit(500);
 
+  if (role === 'gerant') {
+    const profileId = await auth.getCurrentProfileId();
+    if (profileId) query = query.eq('gerant_id', profileId);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   archives = data || [];
   render();
