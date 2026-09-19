@@ -2,68 +2,78 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Supervision Patronne - DK Boutique</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Supervision · DK Boutique</title>
   <meta name="theme-color" content="#F4F7FB">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css?v=11">
-  <style>
-    .patronne-shell { width:100%; max-width:900px; margin:0 auto; padding:1rem; }
-    .summary-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
-    .metric { text-align:center; }
-    .metric-value { font-size:1.7rem; font-weight:900; margin-top:4px; }
-    .readonly-badge { width:auto; }
-    .tour-row { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:14px 0; border-bottom:1px solid var(--border); }
-    .tour-row:last-child { border-bottom:none; }
-    .amount { font-weight:900; white-space:nowrap; }
-    @media (max-width:620px) {
-      .summary-grid { grid-template-columns:1fr; }
-      .tour-row { align-items:flex-start; }
-    }
-  </style>
+  <link rel="stylesheet" href="css/management-pro.css?v=1">
 </head>
-<body>
+<body class="dk-management">
   <header class="app-header">
-    <div>
-      <h1 class="header-title" style="margin:0;">PATRONNE</h1>
-      <div class="text-sm text-muted">Supervision DK Boutique</div>
+    <div class="dk-page-brand">
+      <span class="dk-page-mark" aria-hidden="true">DK</span>
+      <div><div class="dk-page-kicker">DK BOUTIQUE · DIRECTION</div><h1 class="header-title">Supervision</h1></div>
     </div>
-    <button id="logoutBtn" class="btn btn-outline" style="width:auto; padding:.45rem .8rem;">Sortir</button>
+    <button id="logoutBtn" type="button" class="btn btn-outline dk-header-action" style="margin-left:auto;">Sortir</button>
   </header>
 
-  <main class="patronne-shell">
-    <div class="badge badge-primary readonly-badge mb-4">CONSULTATION UNIQUEMENT</div>
+  <main class="dk-manage-shell">
+    <div class="dk-title-row">
+      <div><div class="dk-eyebrow">VUE D’ENSEMBLE</div><h2 class="dk-section-title">Suivi des tournées</h2><p class="dk-section-sub">Consultation uniquement · données enregistrées</p></div>
+      <div class="dk-action-row"><span id="lastRefresh" class="dk-refresh">Chargement…</span><button id="refreshSupervision" type="button" class="btn btn-outline">Actualiser</button></div>
+    </div>
 
-    <section class="summary-grid mb-4">
-      <div class="card metric">
-        <div class="text-sm text-muted">ARGENT DEHORS</div>
-        <div class="metric-value" id="argentDehors">0 F</div>
-      </div>
-      <div class="card metric">
-        <div class="text-sm text-muted">TOURNÉES EN COURS</div>
-        <div class="metric-value" id="activeCount">0</div>
-      </div>
-      <div class="card metric">
-        <div class="text-sm text-muted">COLIS EN COURS</div>
-        <div class="metric-value" id="colisCount">0</div>
-      </div>
+    <section class="card dk-hero" aria-label="Net des tournées en cours">
+      <span class="dk-eyebrow">NET THÉORIQUE · TOURNÉES EN COURS</span>
+      <div class="dk-hero-amount" id="argentDehors">—</div>
+      <p class="dk-hero-note">Montant calculé après retours confirmés et déductions. Il ne représente pas une remise d’argent vérifiée.</p>
     </section>
 
-    <section class="card mb-4">
-      <div class="flex justify-between items-center mb-3">
-        <h2 style="margin:0;">Tournées en cours</h2>
-        <span class="text-sm text-muted" id="lastRefresh"></span>
-      </div>
-      <div id="activeList"></div>
+    <section class="dk-supervision-metrics" aria-label="Chiffres des tournées en cours">
+      <div class="card dk-stat primary"><div class="dk-stat-label">Tournées actives</div><strong class="dk-stat-value" id="activeCount">—</strong></div>
+      <div class="card dk-stat"><div class="dk-stat-label">Colis en cours</div><strong class="dk-stat-value" id="colisCount">—</strong></div>
+      <div class="card dk-stat"><div class="dk-stat-label">Livrés déclarés</div><strong class="dk-stat-value" id="deliveredCount">—</strong></div>
+      <div class="card dk-stat warn"><div class="dk-stat-label">Retours signalés</div><strong class="dk-stat-value" id="returnsSignaled">—</strong></div>
+      <div class="card dk-stat"><div class="dk-stat-label">Retours confirmés</div><strong class="dk-stat-value" id="returnsConfirmed">—</strong></div>
+      <div class="card dk-stat warn"><div class="dk-stat-label">Colis en attente</div><strong class="dk-stat-value" id="pendingCount">—</strong></div>
     </section>
 
-    <section class="card">
-      <h2>Dernières clôtures</h2>
-      <div id="closedList"></div>
+    <div id="supervisionAlert" class="dk-supervision-alert hidden" role="status"></div>
+    <div id="supervisionError" class="dk-error hidden" role="alert" style="margin-bottom:12px;"></div>
+
+    <section class="card dk-controls" aria-label="Rechercher une tournée">
+      <div><label for="searchTour">RECHERCHER</label><input id="searchTour" class="form-control" type="search" maxlength="80" autocomplete="off" placeholder="Livreur ou zone"></div>
+      <div><label for="zoneTourFilter">ZONE</label><select id="zoneTourFilter" class="form-control"><option value="">Toutes les zones</option></select></div>
+    </section>
+
+    <section class="card dk-overview-section" aria-labelledby="activeTitle">
+      <div class="dk-overview-head">
+        <div><h2 class="dk-section-title" id="activeTitle">Tournées en cours</h2><p class="dk-section-sub" id="activeDescription">Photos, montants et statuts dans chaque dossier.</p></div>
+        <span id="activeVisibleCount" class="dk-readonly">—</span>
+      </div>
+      <div id="activeList" class="dk-tour-list"></div>
+    </section>
+
+    <section class="card dk-overview-section" aria-labelledby="closedTitle">
+      <div class="dk-overview-head">
+        <div><h2 class="dk-section-title" id="closedTitle">Dernières clôtures</h2><p class="dk-section-sub">Montants figés · 12 dossiers récents</p></div>
+        <a href="rapports.html" class="btn btn-outline">Toutes les archives →</a>
+      </div>
+      <div id="closedList" class="dk-tour-list"></div>
+    </section>
+
+    <section class="card dk-overview-section">
+      <div class="dk-overview-head"><div><h2 class="dk-section-title">Contrôle et traçabilité</h2><p class="dk-section-sub">Les informations détaillées restent consultables sans modification.</p></div></div>
+      <div class="dk-tour-list">
+        <a href="livreurs.html" class="dk-tour-item"><div><div class="dk-tour-title">Livreurs et zones</div><div class="dk-tour-meta">Identité, disponibilité et historique par livreur.</div></div><span>→</span></a>
+        <a href="colis.html" class="dk-tour-item"><div><div class="dk-tour-title">Recherche de colis</div><div class="dk-tour-meta">Photo, statut et tournée associée.</div></div><span>→</span></a>
+        <a href="rapports.html" class="dk-tour-item"><div><div class="dk-tour-title">Dossiers clôturés</div><div class="dk-tour-meta">Montant final enregistré et opérations du dossier.</div></div><span>→</span></a>
+      </div>
+      <p class="dk-section-sub" style="margin-top:11px;">Un retour signalé n’est pas un retour confirmé. Une clôture enregistrée ne prouve pas à elle seule la remise physique d’argent.</p>
     </section>
   </main>
-
-  <script type="module" src="js/patronne.js?v=1"></script>
+  <script type="module" src="js/patronne.js?v=2"></script>
   <script type="module" src="js/navigation.js?v=2"></script>
 </body>
 </html>
