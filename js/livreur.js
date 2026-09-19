@@ -1,37 +1,49 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
 
-// DOM
 const logoutBtn = document.getElementById('logoutBtn');
 const loader = document.getElementById('loader');
 const noTourneeState = document.getElementById('noTourneeState');
 const activeTourneeState = document.getElementById('activeTourneeState');
+const driverAvatar = document.getElementById('driverAvatar');
+const driverName = document.getElementById('driverName');
+const driverMeta = document.getElementById('driverMeta');
 const zoneName = document.getElementById('zoneName');
 const totalVerser = document.getElementById('totalVerser');
+const totalCount = document.getElementById('totalCount');
+const deliveredCount = document.getElementById('deliveredCount');
+const returnCount = document.getElementById('returnCount');
 const progressText = document.getElementById('progressText');
+const progressFill = document.getElementById('progressFill');
 const colisList = document.getElementById('colisList');
 const fullscreenViewer = document.getElementById('fullscreenViewer');
 const fullscreenImg = document.getElementById('fullscreenImg');
 const offlineBanner = document.getElementById('offlineBanner');
 const toastContainer = document.getElementById('toastContainer');
 
-// State
-let currentUser = null;
 let currentLivreurId = null;
 let currentSortieId = null;
+let currentZoneName = '';
 let isOffline = !navigator.onLine;
 
-// Cache Signed URLs
-// Map<photo_path, { url: string, expiresAt: number }>
 const signedUrlCache = new Map();
-
-// Realtime
 let colisSubscription = null;
-let sortieSubscription = null;
+let livreurSortiesSubscription = null;
+let realtimeRefreshTimer = null;
+
+function formatFcfa(value) {
+    return `${Number(value || 0).toLocaleString('fr-FR')} F`;
+}
+
+function initials(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '--';
+    return parts.slice(0, 2).map(p => p.charAt(0).toUpperCase()).join('');
+}
 
 async function init() {
-    currentUser = await auth.requireRole(['livreur']);
-    if (!currentUser) return;
+    const user = await auth.requireRole(['livreur']);
+    if (!user) return;
 
     window.addEventListener('online', updateNetworkStatus);
     window.addEventListener('offline', updateNetworkStatus);
@@ -42,19 +54,20 @@ async function init() {
         await auth.logout();
     });
 
-    fullscreenViewer.addEventListener('click', () => {
-        gsap.to(fullscreenViewer, { opacity: 0, duration: 0.2, onComplete: () => fullscreenViewer.style.display = 'none' });
+    fullscreenViewer.addEventListener('click', closeFullscreen);
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeFullscreen();
     });
 
-    await loadApp();
+    await loadProfileAndApp();
 }
 
 function updateNetworkStatus() {
     isOffline = !navigator.onLine;
-    if (isOffline) {
-        offlineBanner.style.display = 'block';
-    } else {
-        offlineBanner.style.display = 'none';
+    offlineBanner.style.display = isOffline ? 'block' : 'none';
+
+    if (!isOffline && currentLivreurId) {
+        scheduleFullRefresh(100);
     }
 }
 
@@ -63,42 +76,56 @@ function showToast(message) {
     toast.className = 'toast';
     toast.textContent = message;
     toastContainer.appendChild(toast);
-    
-    gsap.to(toast, { opacity: 1, y: -10, duration: 0.3 });
+
+    gsap.to(toast, { opacity: 1, y: -6, duration: 0.25 });
     setTimeout(() => {
-        gsap.to(toast, { opacity: 0, y: 10, duration: 0.3, onComplete: () => toast.remove() });
-    }, 3000);
+        gsap.to(toast, {
+            opacity: 0,
+            y: 6,
+            duration: 0.25,
+            onComplete: () => toast.remove()
+        });
+    }, 2600);
 }
 
-async function loadApp() {
+async function loadProfileAndApp() {
     try {
         currentLivreurId = await auth.getCurrentLivreurId();
-        if (!currentLivreurId) throw new Error("Session livreur introuvable.");
+        if (!currentLivreurId) throw new Error('Session livreur introuvable.');
 
         const { data: livreur, error } = await supabase
             .from('livreurs')
-            .select('id, zones(nom)')
+            .select('id, nom, telephone, actif, zones(nom)')
             .eq('id', currentLivreurId)
             .single();
 
         if (error) throw error;
-        if (!livreur) throw new Error("Profil livreur non trouvé.");
+        if (!livreur || !livreur.actif) throw new Error('Compte livreur indisponible.');
 
-        zoneName.textContent = livreur.zones?.nom || 'Zone inconnue';
+        currentZoneName = livreur.zones?.nom || 'Zone non définie';
+        driverName.textContent = livreur.nom || 'Livreur';
+        driverAvatar.textContent = initials(livreur.nom);
+        driverMeta.textContent = currentZoneName + (livreur.telephone ? ` • ${livreur.telephone}` : '');
+        zoneName.textContent = currentZoneName;
 
+        setupLivreurRealtime();
         await loadActiveSortie();
     } catch (err) {
         console.error(err);
-        loader.innerHTML = `<p class="text-danger" style="text-align:center;">Erreur: Impossible de charger votre profil.</p>`;
+        loader.replaceChildren();
+        const message = document.createElement('p');
+        message.className = 'text-muted text-sm';
+        message.textContent = 'Impossible de charger votre profil.';
+        loader.appendChild(message);
     }
 }
 
 async function loadActiveSortie() {
-    try {
-        loader.classList.remove('hidden');
-        noTourneeState.classList.add('hidden');
-        activeTourneeState.classList.add('hidden');
+    loader.classList.remove('hidden');
+    noTourneeState.classList.add('hidden');
+    activeTourneeState.classList.add('hidden');
 
+    try {
         const { data: sortie, error } = await supabase
             .from('sorties')
             .select('id, statut')
@@ -109,164 +136,224 @@ async function loadActiveSortie() {
         if (error) throw error;
 
         if (!sortie) {
+            currentSortieId = null;
+            cleanupColisRealtime();
+            colisList.replaceChildren();
+            resetSummary();
             loader.classList.add('hidden');
             noTourneeState.classList.remove('hidden');
-            cleanupRealtime(); // Au cas où on venait d'une tournée qui vient de clore
             return;
         }
 
+        const changedTour = currentSortieId !== sortie.id;
         currentSortieId = sortie.id;
 
-        // Charger le résumé financier
-        await loadSortieSummary();
-        
-        // Charger les colis
-        await loadColis();
+        await Promise.all([
+            loadSortieSummary(),
+            loadColis()
+        ]);
+
+        if (changedTour || !colisSubscription) {
+            setupColisRealtime();
+        }
 
         loader.classList.add('hidden');
         activeTourneeState.classList.remove('hidden');
-
-        setupRealtime();
-
     } catch (err) {
         console.error(err);
-        loader.innerHTML = `<p class="text-danger" style="text-align:center;">Erreur réseau ou base de données.</p>`;
+        loader.replaceChildren();
+        const message = document.createElement('p');
+        message.className = 'text-muted text-sm';
+        message.textContent = 'Erreur réseau ou base de données.';
+        loader.appendChild(message);
     }
+}
+
+function resetSummary() {
+    totalVerser.textContent = '0 F';
+    totalCount.textContent = '0';
+    deliveredCount.textContent = '0';
+    returnCount.textContent = '0';
+    progressText.textContent = '0 / 0 traités';
+    progressFill.style.width = '0%';
 }
 
 async function loadSortieSummary() {
-    try {
-        const { data, error } = await supabase
-            .from('v_sorties_resume')
-            .select('net_a_encaisser, nb_colis_total, nb_livres, nb_retour_signale')
-            .eq('id', currentSortieId)
-            .maybeSingle();
-            
-        if (error || !data) return;
+    if (!currentSortieId) return;
 
-        totalVerser.textContent = data.net_a_encaisser.toLocaleString('fr-FR') + ' F';
-        
-        const traites = data.nb_livres + data.nb_retour_signale;
-        progressText.textContent = `${traites} / ${data.nb_colis_total} traités`;
+    const { data, error } = await supabase
+        .from('v_sorties_resume')
+        .select('zone_nom, net_a_encaisser, nb_colis_total, nb_livres, nb_retour_signale')
+        .eq('id', currentSortieId)
+        .maybeSingle();
 
-    } catch (err) {
-        console.error('Summary error:', err);
-    }
+    if (error) throw error;
+    if (!data) return;
+
+    zoneName.textContent = data.zone_nom || currentZoneName;
+    totalVerser.textContent = formatFcfa(data.net_a_encaisser);
+
+    const total = Number(data.nb_colis_total || 0);
+    const delivered = Number(data.nb_livres || 0);
+    const returned = Number(data.nb_retour_signale || 0);
+    const processed = delivered + returned;
+    const percent = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
+
+    totalCount.textContent = String(total);
+    deliveredCount.textContent = String(delivered);
+    returnCount.textContent = String(returned);
+    progressText.textContent = `${processed} / ${total} traités`;
+    progressFill.style.width = `${percent}%`;
 }
 
 async function loadColis() {
-    try {
-        const { data: colis, error } = await supabase
-            .from('colis')
-            .select('id, valeur, commentaire, photo_path, statut_livreur, created_at')
-            .eq('sortie_id', currentSortieId)
-            .order('created_at', { ascending: true });
+    if (!currentSortieId) return;
 
-        if (error) throw error;
+    const { data, error } = await supabase
+        .from('colis')
+        .select('id, valeur, commentaire, photo_path, statut_livreur, source, created_at')
+        .eq('sortie_id', currentSortieId)
+        .order('created_at', { ascending: true });
 
-        colisList.innerHTML = '';
-        if (colis && colis.length > 0) {
-            for (const c of colis) {
-                await renderColisCard(c);
-            }
-        }
-    } catch (err) {
-        console.error('Colis error:', err);
+    if (error) throw error;
+
+    colisList.replaceChildren();
+
+    const rows = data || [];
+    if (!rows.length) {
+        const empty = document.createElement('div');
+        empty.className = 'card text-center text-muted text-sm';
+        empty.textContent = 'Aucun colis dans cette tournée.';
+        colisList.appendChild(empty);
+        return;
+    }
+
+    for (let index = 0; index < rows.length; index++) {
+        await renderColisCard(rows[index], index + 1);
     }
 }
 
 async function getSignedUrl(photoPath) {
-    const now = Date.now();
-    // Cache valid 24h, we regenerate 5 minutes before expiration
-    const margin = 5 * 60 * 1000; 
+    if (!photoPath) return null;
 
-    if (signedUrlCache.has(photoPath)) {
-        const cached = signedUrlCache.get(photoPath);
-        if (now < (cached.expiresAt - margin)) {
-            return cached.url;
-        }
+    const now = Date.now();
+    const margin = 5 * 60 * 1000;
+    const cached = signedUrlCache.get(photoPath);
+
+    if (cached && now < cached.expiresAt - margin) {
+        return cached.url;
     }
 
-    // Régénérer
-    const expiresInSeconds = 24 * 60 * 60; // 24 heures
+    const expiresInSeconds = 24 * 60 * 60;
     const { data, error } = await supabase.storage
         .from('colis-photos')
         .createSignedUrl(photoPath, expiresInSeconds);
 
-    if (error || !data) {
-        console.error('Erreur signed URL:', error);
+    if (error || !data?.signedUrl) {
+        console.error('Signed URL error:', error);
         return null;
     }
 
-    const expiresAt = now + (expiresInSeconds * 1000);
-    signedUrlCache.set(photoPath, { url: data.signedUrl, expiresAt });
+    signedUrlCache.set(photoPath, {
+        url: data.signedUrl,
+        expiresAt: now + expiresInSeconds * 1000
+    });
+
     return data.signedUrl;
 }
 
-function escapeHtml(value) {
-    const div = document.createElement('div');
-    div.textContent = String(value ?? '');
-    return div.innerHTML;
-}
+async function renderColisCard(colis, number, animate = false) {
+    let card = document.getElementById(`card-${colis.id}`);
+    const isNew = !card;
 
-async function renderColisCard(colis, animate = false) {
-    let existingCard = document.getElementById(`card-${colis.id}`);
-    const isNew = !existingCard;
-
-    if (!existingCard) {
-        existingCard = document.createElement('div');
-        existingCard.id = `card-${colis.id}`;
-        existingCard.className = 'card colis-card';
-        if (animate) {
-            existingCard.style.opacity = '0';
-            existingCard.style.transform = 'translateY(8px)';
-        }
-        colisList.appendChild(existingCard);
+    if (!card) {
+        card = document.createElement('article');
+        card.id = `card-${colis.id}`;
+        card.className = 'card colis-card';
+        colisList.appendChild(card);
     }
 
-    const url = await getSignedUrl(colis.photo_path);
-    const imgSrc = url || '';
+    card.dataset.status = colis.statut_livreur || 'en_attente';
+
+    const head = document.createElement('div');
+    head.className = 'parcel-head';
+
+    const numberEl = document.createElement('span');
+    numberEl.className = 'parcel-number';
+    numberEl.textContent = `COLIS N° ${number}`;
+
+    const sourceEl = document.createElement('span');
+    sourceEl.className = 'parcel-source';
+    sourceEl.textContent = colis.source === 'ajout' ? 'AJOUT' : 'INITIAL';
+
+    head.append(numberEl, sourceEl);
+
+    const photo = document.createElement('div');
+    photo.className = 'photo-container';
+
+    const photoUrl = await getSignedUrl(colis.photo_path);
+    if (photoUrl) {
+        const img = document.createElement('img');
+        img.src = photoUrl;
+        img.alt = `Photo colis ${number}`;
+        img.loading = 'lazy';
+        img.addEventListener('click', () => openFullscreen(photoUrl));
+        photo.appendChild(img);
+    } else {
+        const unavailable = document.createElement('div');
+        unavailable.className = 'photo-unavailable';
+        unavailable.textContent = 'Photo indisponible';
+        photo.appendChild(unavailable);
+    }
+
+    const info = document.createElement('div');
+    info.className = 'colis-info';
+
+    const valueRow = document.createElement('div');
+    valueRow.className = 'parcel-value-row';
+
+    const value = document.createElement('div');
+    value.className = 'parcel-value';
     const isPaid = Number(colis.valeur) === 0;
-    const priceText = isPaid ? 'PAYÉ' : Number(colis.valeur).toLocaleString('fr-FR') + ' F';
-    const priceColor = isPaid ? 'var(--success)' : 'var(--text-main)';
+    value.textContent = isPaid ? 'PAYÉ' : formatFcfa(colis.valeur);
+    if (isPaid) value.style.color = 'var(--success)';
 
-    // Construire le DOM
-    let cardHtml = `
-        <div class="photo-container">
-            <img src="${imgSrc}" loading="lazy" alt="Colis" onclick="window.openFullscreen('${imgSrc}')">
-        </div>
-        <div class="colis-info flex flex-col gap-2">
-            <div class="flex justify-between items-center">
-                <span class="font-bold" style="font-size: 1.5rem; color: ${priceColor};">${priceText}</span>
-                <span class="badge hidden" id="badge-${colis.id}"></span>
-            </div>
-            ${colis.commentaire ? `<p class="text-muted">${escapeHtml(colis.commentaire)}</p>` : ''}
-            
-            <div class="flex gap-2 mt-2">
-                <button class="btn btn-outline action-btn btn-livre" id="btn-livre-${colis.id}">LIVRÉ</button>
-                <button class="btn btn-outline action-btn btn-retour" id="btn-retour-${colis.id}">RETOUR</button>
-            </div>
-        </div>
-    `;
+    const badge = document.createElement('span');
+    badge.id = `badge-${colis.id}`;
 
-    existingCard.innerHTML = cardHtml;
-    updateCardState(colis.id, colis.statut_livreur);
+    valueRow.append(value, badge);
+    info.appendChild(valueRow);
 
-    // Event listeners
-    document.getElementById(`btn-livre-${colis.id}`).addEventListener('click', () => handleAction(colis.id, colis.statut_livreur, 'livre'));
-    document.getElementById(`btn-retour-${colis.id}`).addEventListener('click', () => handleAction(colis.id, colis.statut_livreur, 'retourne'));
+    if (colis.commentaire) {
+        const note = document.createElement('div');
+        note.className = 'parcel-note';
+        note.textContent = colis.commentaire;
+        info.appendChild(note);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'parcel-actions';
+
+    const btnLivre = document.createElement('button');
+    btnLivre.id = `btn-livre-${colis.id}`;
+    btnLivre.className = 'btn btn-outline action-btn';
+    btnLivre.addEventListener('click', () => handleAction(colis.id, 'livre'));
+
+    const btnRetour = document.createElement('button');
+    btnRetour.id = `btn-retour-${colis.id}`;
+    btnRetour.className = 'btn btn-outline action-btn';
+    btnRetour.addEventListener('click', () => handleAction(colis.id, 'retourne'));
+
+    actions.append(btnLivre, btnRetour);
+    info.appendChild(actions);
+
+    card.replaceChildren(head, photo, info);
+    updateCardState(colis.id, colis.statut_livreur || 'en_attente');
 
     if (isNew && animate) {
-        gsap.to(existingCard, { opacity: 1, y: 0, duration: 0.3 });
+        gsap.fromTo(card, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .28, ease: 'power2.out' });
     }
 }
-
-window.openFullscreen = (src) => {
-    if (!src) return;
-    fullscreenImg.src = src;
-    fullscreenViewer.style.display = 'flex';
-    gsap.to(fullscreenViewer, { opacity: 1, duration: 0.2 });
-};
 
 function updateCardState(id, statut) {
     const card = document.getElementById(`card-${id}`);
@@ -276,45 +363,53 @@ function updateCardState(id, statut) {
     const btnRetour = document.getElementById(`btn-retour-${id}`);
     const badge = document.getElementById(`badge-${id}`);
 
-    // Reset styles
+    card.dataset.status = statut;
     card.classList.remove('statut-livre', 'statut-retourne');
-    btnLivre.className = 'btn btn-outline action-btn btn-livre';
-    btnRetour.className = 'btn btn-outline action-btn btn-retour';
-    badge.className = 'badge hidden';
-    btnLivre.disabled = false;
-    btnRetour.disabled = false;
+
+    btnLivre.className = 'btn btn-outline action-btn';
+    btnRetour.className = 'btn btn-outline action-btn';
+    btnLivre.textContent = 'LIVRÉ';
+    btnRetour.textContent = 'RETOUR';
+
+    badge.className = 'badge badge-warning';
+    badge.textContent = 'EN ATTENTE';
 
     if (statut === 'livre') {
         card.classList.add('statut-livre');
-        btnLivre.classList.replace('btn-outline', 'btn-success');
-        badge.textContent = 'LIVRÉ';
+        btnLivre.className = 'btn btn-success action-btn';
+        btnLivre.textContent = 'ANNULER LIVRÉ';
         badge.className = 'badge badge-success';
+        badge.textContent = 'LIVRÉ';
     } else if (statut === 'retourne') {
         card.classList.add('statut-retourne');
-        btnRetour.classList.replace('btn-outline', 'btn-danger');
-        badge.textContent = 'RETOURNÉ';
+        btnRetour.className = 'btn btn-danger action-btn';
+        btnRetour.textContent = 'ANNULER RETOUR';
         badge.className = 'badge badge-danger';
+        badge.textContent = 'RETOUR';
     }
 }
 
-async function handleAction(colisId, currentStatut, requestedAction) {
+async function handleAction(colisId, requestedAction) {
     if (isOffline) {
-        alert("Connexion réseau nécessaire pour mettre à jour ce colis.");
+        showToast('Connexion Internet nécessaire.');
         return;
+    }
+
+    const card = document.getElementById(`card-${colisId}`);
+    if (!card) return;
+
+    const currentStatut = card.dataset.status || 'en_attente';
+    const newStatut = currentStatut === requestedAction ? 'en_attente' : requestedAction;
+
+    if (newStatut === 'retourne') {
+        const confirmed = window.confirm('Déclarer ce colis en RETOUR ? Le Gérant devra ensuite confirmer le retour dans Le Point.');
+        if (!confirmed) return;
     }
 
     const btnLivre = document.getElementById(`btn-livre-${colisId}`);
     const btnRetour = document.getElementById(`btn-retour-${colisId}`);
-    
-    // Disable temporarily
     btnLivre.disabled = true;
     btnRetour.disabled = true;
-
-    // Undo logic: if clicking the active state, we revert to 'en_attente'
-    let newStatut = requestedAction;
-    if (currentStatut === requestedAction) {
-        newStatut = 'en_attente';
-    }
 
     try {
         const { error } = await supabase.rpc('update_livreur_colis_status', {
@@ -324,67 +419,120 @@ async function handleAction(colisId, currentStatut, requestedAction) {
 
         if (error) throw error;
 
-        // Local UI update is handled safely
-        // Realtime will also fire, but we can do it immediately for snappiness, or just let realtime do it.
-        // Let's do it immediately for better UX.
         updateCardState(colisId, newStatut);
-        
-        // Update click handlers state. Since we completely replace HTML in renderColisCard we must bind properly,
-        // but here we just mutate state safely. To be perfectly sync, we re-bind or just refresh the single card.
-        // The easiest robust way is to re-fetch the specific colis or just mutate the event listener logic.
-        // Actually, Realtime will push the UPDATE and re-render the card, which is the absolute source of truth.
-        // Let's re-fetch v_sorties_resume.
         await loadSortieSummary();
 
+        if (newStatut === 'livre') showToast('Colis marqué LIVRÉ.');
+        if (newStatut === 'retourne') showToast('Retour signalé au Gérant.');
+        if (newStatut === 'en_attente') showToast('Statut annulé.');
     } catch (err) {
         console.error(err);
-        alert("Impossible de mettre à jour le colis.");
+        showToast('Impossible de mettre à jour ce colis.');
+    } finally {
         btnLivre.disabled = false;
         btnRetour.disabled = false;
     }
 }
 
-function setupRealtime() {
-    cleanupRealtime();
+function setupLivreurRealtime() {
+    if (!currentLivreurId) return;
 
-    colisSubscription = supabase.channel(`colis-livreur-${currentSortieId}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'colis', filter: `sortie_id=eq.${currentSortieId}` }, async (payload) => {
-            showToast("Nouveau colis ajouté");
-            await renderColisCard(payload.new, true);
-            await loadSortieSummary();
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'colis', filter: `sortie_id=eq.${currentSortieId}` }, async (payload) => {
-            await renderColisCard(payload.new, false);
-            await loadSortieSummary();
-        })
-        .subscribe();
+    if (livreurSortiesSubscription) {
+        supabase.removeChannel(livreurSortiesSubscription);
+    }
 
-    sortieSubscription = supabase.channel(`sortie-livreur-${currentSortieId}`)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sorties', filter: `id=eq.${currentSortieId}` }, (payload) => {
-            if (payload.new.statut === 'cloturee') {
-                handleCloture();
+    livreurSortiesSubscription = supabase
+        .channel(`livreur-sorties-${currentLivreurId}`)
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'sorties',
+                filter: `livreur_id=eq.${currentLivreurId}`
+            },
+            (payload) => {
+                if (payload.eventType === 'INSERT') {
+                    showToast('Nouvelle tournée disponible.');
+                } else if (payload.eventType === 'UPDATE' && payload.new?.statut === 'cloturee') {
+                    showToast('Votre tournée vient d’être clôturée.');
+                }
+                scheduleFullRefresh(350);
             }
-        })
+        )
         .subscribe();
 }
 
-function handleCloture() {
-    cleanupRealtime();
-    colisList.innerHTML = '';
-    activeTourneeState.classList.add('hidden');
-    noTourneeState.classList.remove('hidden');
-    noTourneeState.innerHTML = `
-        <h2 class="text-lg text-danger">Tournée clôturée</h2>
-        <p class="text-muted text-sm mt-2">Votre Gérant a clôturé cette tournée.</p>
-    `;
-    alert("Votre tournée a été clôturée. Vous ne pouvez plus modifier les colis.");
+function setupColisRealtime() {
+    cleanupColisRealtime();
+    if (!currentSortieId) return;
+
+    colisSubscription = supabase
+        .channel(`colis-livreur-${currentSortieId}`)
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'colis',
+                filter: `sortie_id=eq.${currentSortieId}`
+            },
+            (payload) => {
+                if (payload.eventType === 'INSERT') {
+                    showToast('Nouveau colis ajouté à votre tournée.');
+                }
+                scheduleFullRefresh(250);
+            }
+        )
+        .subscribe();
+}
+
+function scheduleFullRefresh(delay = 250) {
+    clearTimeout(realtimeRefreshTimer);
+    realtimeRefreshTimer = setTimeout(async () => {
+        try {
+            await loadActiveSortie();
+        } catch (err) {
+            console.error('Realtime refresh error:', err);
+        }
+    }, delay);
+}
+
+function cleanupColisRealtime() {
+    if (colisSubscription) {
+        supabase.removeChannel(colisSubscription);
+        colisSubscription = null;
+    }
 }
 
 function cleanupRealtime() {
-    if (colisSubscription) supabase.removeChannel(colisSubscription);
-    if (sortieSubscription) supabase.removeChannel(sortieSubscription);
-    colisSubscription = null;
-    sortieSubscription = null;
+    cleanupColisRealtime();
+
+    if (livreurSortiesSubscription) {
+        supabase.removeChannel(livreurSortiesSubscription);
+        livreurSortiesSubscription = null;
+    }
+
+    clearTimeout(realtimeRefreshTimer);
+}
+
+function openFullscreen(src) {
+    if (!src) return;
+    fullscreenImg.src = src;
+    fullscreenViewer.style.display = 'flex';
+    gsap.to(fullscreenViewer, { opacity: 1, duration: .18 });
+}
+
+function closeFullscreen() {
+    if (fullscreenViewer.style.display === 'none') return;
+    gsap.to(fullscreenViewer, {
+        opacity: 0,
+        duration: .18,
+        onComplete: () => {
+            fullscreenViewer.style.display = 'none';
+            fullscreenImg.src = '';
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', init);
