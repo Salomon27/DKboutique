@@ -3,8 +3,8 @@
   "short_name": "DK Boutique",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#F4F7FB",
+  "theme_color": "#F4F7FB",
   "description": "Application de gestion de livraison DK Boutique",
   "icons": [
     {
