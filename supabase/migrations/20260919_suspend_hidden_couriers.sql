@@ -82,12 +82,14 @@ using (public.dk_sortie_visible(sortie_id)
 create or replace function public.dk_guard_inactive_tour_write()
 returns trigger language plpgsql security definer set search_path = ''
 as $$
-declare v_active boolean;
+declare v_active boolean; v_closure boolean := false;
 begin
+  if tg_table_name = 'sortie_operations' then
+    v_closure := new.type = 'cloture';
+  end if;
   select (l.actif and s.suspendue_at is null
     and (s.statut = 'en_cours'
-      or (tg_table_name = 'sortie_operations'
-        and new.type = 'cloture' and s.statut = 'cloturee')))
+      or (v_closure and s.statut = 'cloturee')))
   into v_active
   from public.sorties s
   join public.livreurs l on l.id = s.livreur_id
