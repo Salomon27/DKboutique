@@ -33,7 +33,8 @@ async function loadDay() {
 
   const [start, end] = dayBounds(value);
 
-  const { data, error } = await supabase
+  const role = await auth.getCurrentRole();
+  let query = supabase
     .from('v_sorties_resume')
     .select('*')
     .eq('statut', 'cloturee')
@@ -41,6 +42,12 @@ async function loadDay() {
     .lt('closed_at', end)
     .order('closed_at');
 
+  if (role === 'gerant') {
+    const profileId = await auth.getCurrentProfileId();
+    if (profileId) query = query.eq('gerant_id', profileId);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
 
   const rows = data || [];
