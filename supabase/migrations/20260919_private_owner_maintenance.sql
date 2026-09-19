@@ -149,7 +149,7 @@ begin
   if not dk_private.verify_owner_secret(p_secret) then
     return jsonb_build_object('ok',false,'error','Autorisation refusée ou temporairement bloquée.');
   end if;
-  perform pg_catalog.pg_advisory_xact_lock(7091051999);
+  perform pg_catalog.pg_advisory_xact_lock(246801357);
   select count(*) into v_colis from public.colis;
   select count(*) into v_tours from public.sorties;
   select count(*) into v_livreurs from public.livreurs;
