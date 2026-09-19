@@ -101,7 +101,7 @@ function makeTourCard(tour, closed = false) {
     infoCell('Chargement', formatFcfa(tour.montant_chargement)),
     infoCell('Retours confirmés (montant)', formatFcfa(tour.montant_retours)),
     infoCell('Déductions + frais', formatFcfa(Number(tour.deduction_livraison || 0) + Number(tour.frais_divers || 0))),
-    infoCell(closed ? 'Net figé à la clôture' : 'Net théorique actuel',
+    infoCell(closed ? 'Net du dossier clôturé (après corrections)' : 'Net théorique actuel',
       closed && tour.montant_final !== null ? formatFcfa(tour.montant_final) : formatFcfa(tour.net_a_encaisser))
   );
 
