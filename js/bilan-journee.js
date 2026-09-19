@@ -1,5 +1,6 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
+import { enableAutoSync } from './auto-sync.js';
 import { formatFcfa, createEmptyState } from './page-utils.js';
 
 const dayInput = document.getElementById('dayInput');
@@ -126,6 +127,10 @@ async function init() {
     loadDay().catch(console.error);
   });
 
+  enableAutoSync(() => loadDay(), {
+    tables: ['sorties', 'colis', 'sortie_operations'], intervalMs: 30000,
+    shouldRefresh: () => !document.activeElement?.matches('input, select, textarea')
+  });
   try { await loadDay(); }
   catch (err) {
     console.error(err);
