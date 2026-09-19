@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Supervision Patronne - DK Boutique</title>
+  <meta name="theme-color" content="#F4F7FB">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .patronne-shell { width:100%; max-width:900px; margin:0 auto; padding:1rem; }
+    .summary-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    .metric { text-align:center; }
+    .metric-value { font-size:1.7rem; font-weight:900; margin-top:4px; }
+    .readonly-badge { width:auto; }
+    .tour-row { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:14px 0; border-bottom:1px solid var(--border); }
+    .tour-row:last-child { border-bottom:none; }
+    .amount { font-weight:900; white-space:nowrap; }
+    @media (max-width:620px) {
+      .summary-grid { grid-template-columns:1fr; }
+      .tour-row { align-items:flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1 class="header-title" style="margin:0;">PATRONNE</h1>
+      <div class="text-sm text-muted">Supervision DK Boutique</div>
+    </div>
+    <button id="logoutBtn" class="btn btn-outline" style="width:auto; padding:.45rem .8rem;">Sortir</button>
+  </header>
+
+  <main class="patronne-shell">
+    <div class="badge badge-primary readonly-badge mb-4">CONSULTATION UNIQUEMENT</div>
+
+    <section class="summary-grid mb-4">
+      <div class="card metric">
+        <div class="text-sm text-muted">ARGENT DEHORS</div>
+        <div class="metric-value" id="argentDehors">0 F</div>
+      </div>
+      <div class="card metric">
+        <div class="text-sm text-muted">TOURNÉES EN COURS</div>
+        <div class="metric-value" id="activeCount">0</div>
+      </div>
+      <div class="card metric">
+        <div class="text-sm text-muted">COLIS EN COURS</div>
+        <div class="metric-value" id="colisCount">0</div>
+      </div>
+    </section>
+
+    <section class="card mb-4">
+      <div class="flex justify-between items-center mb-3">
+        <h2 style="margin:0;">Tournées en cours</h2>
+        <span class="text-sm text-muted" id="lastRefresh"></span>
+      </div>
+      <div id="activeList"></div>
+    </section>
+
+    <section class="card">
+      <h2>Dernières clôtures</h2>
+      <div id="closedList"></div>
+    </section>
+  </main>
+
+  <script type="module" src="js/patronne.js?v=1"></script>
+</body>
+</html>
