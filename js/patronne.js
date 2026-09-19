@@ -1,5 +1,6 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
+import { enableAutoSync } from './auto-sync.js';
 import { formatFcfa, formatDate, createEmptyState } from './page-utils.js';
 
 const $ = id => document.getElementById(id);
@@ -278,5 +279,6 @@ async function init(){
   elements.closedTab.addEventListener('click', () => selectTab(true));
   await loadDashboard();
   setupRealtime();
+  enableAutoSync(() => loadDashboard(), { intervalMs: 30000, shouldRefresh: () => !document.querySelector('.dk-nav-backdrop.open') });
 }
 document.addEventListener('DOMContentLoaded',init);
