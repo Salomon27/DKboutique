@@ -28,6 +28,17 @@ create table if not exists dk_private.cleanup_grant (
 );
 revoke all on dk_private.cleanup_grant from public, anon, authenticated;
 
+-- Journal privé des actions sensibles ; pas de PIN, pas de photo, pas de montant enregistré ici.
+create table if not exists dk_private.maintenance_log (
+  id bigint generated always as identity primary key,
+  actor_profile_id uuid,
+  action text not null,
+  target_id uuid,
+  summary jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+revoke all on dk_private.maintenance_log from public, anon, authenticated;
+
 create or replace function dk_private.is_current_owner()
 returns boolean language sql stable security definer set search_path = ''
 as $$
@@ -113,10 +124,16 @@ begin
     where livreur_id = p_livreur_id and revoked_at is null;
   if v_has_history then
     update public.livreurs set actif = false where id = p_livreur_id;
+    insert into dk_private.maintenance_log(actor_profile_id,action,target_id,summary)
+      values(public.current_profile_id(),'livreur_desactive',p_livreur_id,
+        jsonb_build_object('nom',v_name,'historique_conserve',true));
     return jsonb_build_object('ok',true,'mode','desactive',
       'message','Compte désactivé. Historique des tournées conservé.');
   end if;
   delete from public.livreurs where id = p_livreur_id;
+  insert into dk_private.maintenance_log(actor_profile_id,action,target_id,summary)
+    values(public.current_profile_id(),'livreur_supprime',p_livreur_id,
+      jsonb_build_object('nom',v_name,'historique_conserve',false));
   return jsonb_build_object('ok',true,'mode','supprime',
     'message','Compte supprimé définitivement (aucune tournée associée).');
 end;
@@ -156,6 +173,11 @@ begin
     values (auth.uid(), now() + interval '30 minutes')
     on conflict (auth_user_id) do update set expires_at = excluded.expires_at;
 
+  insert into dk_private.maintenance_log(actor_profile_id,action,summary)
+    values(public.current_profile_id(),'reinitialisation',
+      jsonb_build_object('colis',v_colis,'tournees',v_tours,'livreurs',v_livreurs,
+        'zones',v_zones,'photos_a_nettoyer',
+          (select count(*) from dk_private.photo_cleanup)));
   return jsonb_build_object('ok',true, 'colis', v_colis, 'tournees',v_tours,
     'livreurs',v_livreurs,'zones',v_zones,
     'photos_pending',(select count(*) from dk_private.photo_cleanup));
