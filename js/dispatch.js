@@ -270,7 +270,7 @@ async function addLocalColis() {
         alert("Erreur lors du traitement de la photo.");
     } finally {
         addColisBtn.disabled = false;
-        addColisBtn.textContent = "AJOUTER";
+        addColisBtn.textContent = "AJOUTER +";
     }
 }
 
