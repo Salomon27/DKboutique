@@ -36,6 +36,24 @@ export const auth = {
     }
   },
 
+  async getCurrentRole() {
+    const { data, error } = await supabase.rpc('current_app_role');
+    if (error) throw error;
+    return data || null;
+  },
+
+  async getCurrentProfileId() {
+    const { data, error } = await supabase.rpc('current_profile_id');
+    if (error) throw error;
+    return data || null;
+  },
+
+  async getCurrentLivreurId() {
+    const { data, error } = await supabase.rpc('current_livreur_id');
+    if (error) throw error;
+    return data || null;
+  },
+
   async loginWithPin(pin) {
     if (!pin || pin.length !== 4) throw new Error('Code PIN invalide.');
 
@@ -43,11 +61,6 @@ export const auth = {
 
     const { data, error } = await supabase.rpc('login_with_pin', { p_pin: pin });
     
-    // LOGS DE DEBUG OBLIGATOIRES
-    console.log('PIN LENGTH:', pin.length);
-    console.log('LOGIN RESULT:', data);
-    console.log('LOGIN ERROR:', error);
-
     if (error) {
         console.error('Erreur RPC login:', error);
         // Supabase error objects often have the custom raised exception in error.message
@@ -85,10 +98,15 @@ export const auth = {
       return null;
     }
 
-    const { data: role, error } = await supabase.rpc('current_app_role');
-    
-    if (error || !role) {
-      this.logout();
+    let role = null;
+    try {
+      role = await this.getCurrentRole();
+    } catch (error) {
+      console.error('Erreur lecture rôle:', error);
+    }
+
+    if (!role) {
+      await this.logout();
       return null;
     }
 
