@@ -260,14 +260,14 @@ async function getSignedUrl(photoPath) {
     if (!photoPath) return null;
 
     const now = Date.now();
-    const margin = 5 * 60 * 1000;
+    const margin = 30 * 1000;
     const cached = signedUrlCache.get(photoPath);
 
     if (cached && now < cached.expiresAt - margin) {
         return cached.url;
     }
 
-    const expiresInSeconds = 24 * 60 * 60;
+    const expiresInSeconds = 5 * 60;
     const { data, error } = await supabase.storage
         .from('colis-photos')
         .createSignedUrl(photoPath, expiresInSeconds);
