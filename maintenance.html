@@ -69,6 +69,25 @@
         <button id="ownerRetireBtn" type="button" class="btn btn-outline">RETIRER LE LIVREUR</button>
       </details>
 
+      <details id="ownerPurgePanel">
+        <summary>Effacer un livreur et ses données</summary>
+        <p class="owner-text">Pour retirer uniquement un compte de test ou corriger une erreur. Toutes ses tournées, photos, colis et opérations seront exclus de la comptabilité. Les autres livreurs et données resteront intacts.</p>
+        <div class="owner-caution">Cette suppression est définitive, y compris pour les tournées déjà clôturées. En cas d’encaissement réel, vérifiez et exportez les justificatifs avant de continuer.</div>
+        <div class="form-group">
+          <label for="ownerPurgeSelect">Livreur concerné (actif ou désactivé)</label>
+          <select id="ownerPurgeSelect" class="form-control"><option value="">Chargement…</option></select>
+        </div>
+        <div class="form-group">
+          <label for="ownerPurgeConfirm">Écrivez EFFACER LIVREUR</label>
+          <input id="ownerPurgeConfirm" class="form-control" autocomplete="off" maxlength="16" placeholder="EFFACER LIVREUR">
+        </div>
+        <div class="form-group">
+          <label for="ownerPurgeCode">Code privé</label>
+          <input id="ownerPurgeCode" type="password" class="form-control owner-secret" autocomplete="off" spellcheck="false" placeholder="Saisissez votre code">
+        </div>
+        <button id="ownerPurgeBtn" type="button" class="btn owner-danger" disabled>EFFACER CE LIVREUR UNIQUEMENT</button>
+      </details>
+
       <details id="ownerResetPanel">
         <summary>Réinitialiser les données</summary>
         <div class="owner-caution">
