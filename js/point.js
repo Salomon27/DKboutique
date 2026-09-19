@@ -678,6 +678,7 @@ async function photoElement(colis) {
 }
 
 async function renderRetours() {
+  const request = pointReadSequence;
   retoursList.replaceChildren();
 
   const rows = [...currentColis].sort((a, b) => {
@@ -704,7 +705,9 @@ async function renderRetours() {
     const row = document.createElement('div');
     row.className = 'point-colis-row';
 
-    row.appendChild(await photoElement(colis));
+    const photo = await photoElement(colis);
+    if (request !== pointReadSequence) return;
+    row.appendChild(photo);
 
     const main = document.createElement('div');
     main.className = 'point-colis-main';
@@ -777,6 +780,7 @@ function updateReturnSelection() {
 }
 
 async function renderLivraisons() {
+  const request = pointReadSequence;
   livraisonsList.replaceChildren();
 
   const paid = currentColis.filter(c => Number(c.valeur) === 0 && !hasOperation(c.id, 'retour'));
@@ -794,7 +798,9 @@ async function renderLivraisons() {
     const row = document.createElement('div');
     row.className = 'point-colis-row';
 
-    row.appendChild(await photoElement(colis));
+    const photo = await photoElement(colis);
+    if (request !== pointReadSequence) return;
+    row.appendChild(photo);
 
     const main = document.createElement('div');
     main.className = 'point-colis-main';
