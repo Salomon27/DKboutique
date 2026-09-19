@@ -69,6 +69,11 @@ async function removeLivreur() {
   const code = el.driverCode.value;
   const label = el.livreur.selectedOptions[0]?.textContent || 'ce livreur';
   if (!id || !code.trim()) return report('Sélectionnez un livreur et saisissez votre code privé.', true);
+  const status = await ownerStatus().catch(() => null);
+  if (!status?.suspension_enabled) {
+    el.driverCode.value = '';
+    return report('Retrait indisponible : appliquez d’abord la mise à niveau de suspension dans Supabase.', true);
+  }
   if (!window.confirm(`Désactiver et masquer ${label} ?\\n\\nSa tournée en cours, ses colis, photos et historiques disparaîtront des écrans habituels. Son accès sera révoqué.\\n\\nLes données restent en base pour un contrôle ultérieur. Les montants non encaissés ne seront PAS clôturés.`)) return;
   setBusy(true);
   el.driverCode.value = '';
@@ -169,7 +174,11 @@ async function init() {
   const user = await auth.requireRole(['patronne']);
   if (!user) return;
   try {
-    await ownerStatus();
+    const status = await ownerStatus();
+    if (!status.suspension_enabled) {
+      el.retire.disabled = true;
+      report('Pour désactiver et masquer les données d’un livreur, installez la migration de suspension dans Supabase.', true);
+    }
     el.guard.classList.add('hidden');
     el.workspace.classList.remove('hidden');
     [el.acknowledge, el.confirmation, el.resetCode].forEach(input =>
