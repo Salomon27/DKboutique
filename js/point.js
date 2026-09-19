@@ -2,6 +2,7 @@ import { auth } from './auth.js';
 import { supabase } from './config.js';
 import { enableAutoSync } from './auto-sync.js';
 import { compressImage } from './colis-utils.js';
+import { correctParcelEntry } from './parcel-corrections.js';
 
 const tourneeSelect = document.getElementById('tourneeSelect');
 const tourneeLoadError = document.getElementById('tourneeLoadError');
@@ -112,6 +113,7 @@ let viewerIndex = -1;
 let lastViewerTrigger = null;
 let renderVersion = 0;
 let pointReadSequence = 0;
+let correctionAvailable = false;
 
 const signedUrlCache = new Map();
 
@@ -308,6 +310,7 @@ function resetSelection() {
   currentColis = [];
   currentOps = [];
   selectedForRetour.clear();
+  correctionAvailable = false;
   galleryFilter = 'tous';
   galleryFilters.querySelectorAll('.point-filter').forEach(button => {
     const active = button.dataset.filter === 'tous';
@@ -401,6 +404,11 @@ async function refreshPointData() {
   currentResume = resumeRes.data;
   currentColis = colisRes.data || [];
   currentOps = opsRes.data || [];
+  // L'action n'apparaît que lorsque le serveur dispose de la procédure sécurisée.
+  const { error: correctionCheckError } = await supabase
+    .rpc('consulter_corrections_colis', { p_sortie_id: sortieId });
+  if (sortieId !== currentSortieId || request !== pointReadSequence) return;
+  correctionAvailable = !correctionCheckError;
 
   const validSelectedIds = new Set(
     currentColis
@@ -517,6 +525,21 @@ function makeGalleryCard(colis, index) {
     flags.appendChild(paid);
   }
   info.append(amount, note, flags);
+  if (correctionAvailable) {
+    const correction = document.createElement('button');
+    correction.type = 'button';
+    correction.className = 'point-correct-btn';
+    correction.textContent = 'Corriger une erreur';
+    correction.setAttribute('aria-label', 'Supprimer la saisie erronée du colis ' + (index + 1));
+    correction.addEventListener('click', async () => {
+      await correctParcelEntry(colis, {
+        setBusy: busy => { correction.disabled = busy; correction.textContent = busy ? 'Correction…' : 'Corriger une erreur'; },
+        notify: message => showToast(message),
+        after: () => refreshPointData()
+      });
+    });
+    info.appendChild(correction);
+  }
   card.append(picture, info);
   return { card, photoButton, fallback, picture };
 }
