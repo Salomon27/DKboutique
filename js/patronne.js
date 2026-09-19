@@ -278,6 +278,15 @@ async function init(){
   });
   elements.activeTab.addEventListener('click', () => selectTab(false));
   elements.closedTab.addEventListener('click', () => selectTab(true));
+  // This link appears only for the exact owner profile configured privately in Supabase.
+  try {
+    const { data, error } = await supabase.rpc('maintenance_owner_status');
+    if (!error && data?.enabled) {
+      document.getElementById('ownerAdminLink')?.classList.remove('hidden');
+    }
+  } catch (error) {
+    // Maintenance is optional until its private SQL installation is completed.
+  }
   try { await loadDashboard(); }
   catch(error) { console.error('Premier chargement supervision:', error); }
   setupRealtime();
