@@ -91,6 +91,8 @@ function updateStage() {
     previewZoomBtn.hidden = !hasPhoto;
     photoInput.disabled = !formReady || isValidating;
     addColisBtn.disabled = !formReady || !hasPhoto || isValidating;
+    // La validation reste visible avec des colis enregistrés, mais attend l'ajout de la photo en cours.
+    validateAllBtn.disabled = pendingColis.length === 0 || isValidating || hasPhoto;
 }
 
 function resetPhoto() {
