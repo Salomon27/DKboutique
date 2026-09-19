@@ -6,6 +6,13 @@ import { compressImage } from './colis-utils.js';
 const livreurSelect = document.getElementById('livreurSelect');
 const zoneContainer = document.getElementById('zoneContainer');
 const zoneDisplay = document.getElementById('zoneDisplay');
+const emptyCart = document.getElementById('emptyCart');
+const parcelScroll = document.getElementById('parcelScroll');
+const menuBtn = document.getElementById('menuBtn');
+const closeMenuBtn = document.getElementById('closeMenuBtn');
+const drawerBackdrop = document.getElementById('dispatchDrawerBackdrop');
+const refreshBtn = document.getElementById('refreshBtn');
+const logoutBtn = document.getElementById('logoutBtn');
 const tourneeStatus = document.getElementById('tourneeStatus');
 const colisFormContainer = document.getElementById('colisFormContainer');
 
@@ -35,17 +42,61 @@ let livreurs = [];
 let selectedLivreur = null;
 let pendingColis = [];
 let activeTourneeId = null;
+let previewObjectUrl = null;
+let selectedLivreurRequest = 0;
+let isValidating = false;
+
+function closeMenu() {
+    drawerBackdrop.classList.remove('open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    menuBtn.focus();
+}
+
+function confirmDiscardPending() {
+    return pendingColis.length === 0 ||
+        window.confirm('Vous avez des colis non enregistrés. Les abandonner ?');
+}
+
+function refreshScreen() {
+    if (!confirmDiscardPending()) return;
+    window.location.reload();
+}
+
+function setFormAvailable(available) {
+    colisFormContainer.style.opacity = available ? '1' : '.5';
+    colisFormContainer.style.pointerEvents = available ? 'auto' : 'none';
+}
 
 async function init() {
     const user = await auth.requireRole(['gerant']);
     if (!user) return;
 
-    await loadLivreurs();
+    menuBtn.addEventListener('click', () => {
+        drawerBackdrop.classList.add('open');
+        menuBtn.setAttribute('aria-expanded', 'true');
+        closeMenuBtn.focus();
+    });
+    closeMenuBtn.addEventListener('click', closeMenu);
+    drawerBackdrop.addEventListener('click', event => {
+        if (event.target === drawerBackdrop) closeMenu();
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && drawerBackdrop.classList.contains('open')) closeMenu();
+    });
+    refreshBtn.addEventListener('click', refreshScreen);
+    logoutBtn.addEventListener('click', async () => {
+        if (!confirmDiscardPending()) return;
+        logoutBtn.disabled = true;
+        await auth.logout();
+    });
+
     livreurSelect.addEventListener('change', handleLivreurChange);
     photoInput.addEventListener('change', handlePhotoChange);
     isPaidCheckbox.addEventListener('change', handlePaidToggle);
     addColisBtn.addEventListener('click', addLocalColis);
     validateAllBtn.addEventListener('click', validateAllColis);
+    await loadLivreurs();
+    renderPendingColis();
 }
 
 async function loadLivreurs() {
@@ -74,20 +125,34 @@ async function loadLivreurs() {
 
 async function handleLivreurChange(e) {
     const lId = e.target.value;
+    if (pendingColis.length && selectedLivreur && lId !== selectedLivreur.id) {
+        if (!confirmDiscardPending()) {
+            livreurSelect.value = selectedLivreur.id;
+            return;
+        }
+        pendingColis.forEach(colis => URL.revokeObjectURL(colis.previewUrl));
+        pendingColis = [];
+        renderPendingColis();
+    }
+
+    const request = ++selectedLivreurRequest;
+    activeTourneeId = null;
+    setFormAvailable(false);
+    tourneeStatus.textContent = '';
     if (!lId) {
         selectedLivreur = null;
-        zoneContainer.classList.add('hidden');
-        colisFormContainer.style.opacity = '0.5';
-        colisFormContainer.style.pointerEvents = 'none';
+        zoneDisplay.value = '';
         return;
     }
 
-    selectedLivreur = livreurs.find(l => l.id === lId);
-    
-    zoneDisplay.textContent = selectedLivreur.zones?.nom || 'Sans zone';
-    zoneContainer.classList.remove('hidden');
+    selectedLivreur = livreurs.find(l => l.id === lId) || null;
+    if (!selectedLivreur) {
+        zoneDisplay.value = '';
+        return;
+    }
 
-    tourneeStatus.textContent = 'Vérification de la tournée...';
+    zoneDisplay.value = selectedLivreur.zones?.nom || 'Sans zone';
+    tourneeStatus.textContent = 'Vérification de la tournée…';
     try {
         const { data, error } = await supabase
             .from('sorties')
@@ -96,24 +161,25 @@ async function handleLivreurChange(e) {
             .eq('statut', 'en_cours')
             .maybeSingle();
             
+        if (request !== selectedLivreurRequest) return;
         if (error) throw error;
 
         if (data) {
             activeTourneeId = data.id;
-            tourneeStatus.textContent = 'TOURNÉE EN COURS. Vous allez ajouter de nouveaux colis à cette tournée.';
+            tourneeStatus.textContent = 'Tournée active : les prochains colis seront ajoutés à cette tournée.';
             tourneeStatus.style.color = 'var(--warning)';
         } else {
             activeTourneeId = null;
-            tourneeStatus.textContent = 'Aucune tournée active. Une nouvelle sera créée.';
+            tourneeStatus.textContent = 'Nouvelle tournée : prête à être créée.';
             tourneeStatus.style.color = 'var(--text-muted)';
         }
 
-        colisFormContainer.style.opacity = '1';
-        colisFormContainer.style.pointerEvents = 'auto';
+        setFormAvailable(true);
 
     } catch (err) {
+        if (request !== selectedLivreurRequest) return;
         console.error(err);
-        tourneeStatus.textContent = 'Erreur lors de la vérification.';
+        tourneeStatus.textContent = 'Erreur lors de la vérification. Sélectionnez à nouveau le livreur.';
         tourneeStatus.style.color = 'var(--danger)';
     }
 }
@@ -131,22 +197,24 @@ function handlePaidToggle() {
 
 // Compression d'image côté client (déplacée vers colis-utils.js)
 
-async function handlePhotoChange(e) {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            cameraPreview.src = ev.target.result;
-            cameraPreview.style.display = 'block';
-            photoPlaceholder.style.display = 'none';
-            // Animation douce
-            gsap.fromTo(cameraPreview, { opacity: 0 }, { opacity: 1, duration: 0.3 });
-        };
-        reader.readAsDataURL(file);
+async function handlePhotoChange(event) {
+    if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+    previewObjectUrl = null;
+    const file = event.target.files?.[0];
+    if (!file) {
+        cameraPreview.removeAttribute('src');
+        cameraPreview.style.display = 'none';
+        photoPlaceholder.style.display = 'grid';
+        return;
     }
+    previewObjectUrl = URL.createObjectURL(file);
+    cameraPreview.src = previewObjectUrl;
+    cameraPreview.style.display = 'block';
+    photoPlaceholder.style.display = 'none';
 }
 
 async function addLocalColis() {
+    if (!selectedLivreur || isValidating) return;
     const rawFile = photoInput.files[0];
     const montant = montantInput.value.trim();
     const note = noteInput.value.trim();
@@ -175,7 +243,7 @@ async function addLocalColis() {
         const colis = {
             id: crypto.randomUUID(), // UUID définitif généré côté client
             file: compressedFile,
-            previewUrl: cameraPreview.src,
+            previewUrl: URL.createObjectURL(compressedFile),
             valeur,
             commentaire: note,
             status: 'pending',
@@ -187,8 +255,11 @@ async function addLocalColis() {
         
         // Reset Form
         photoInput.value = '';
+        if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+        previewObjectUrl = null;
+        cameraPreview.removeAttribute('src');
         cameraPreview.style.display = 'none';
-        photoPlaceholder.style.display = 'block';
+        photoPlaceholder.style.display = 'grid';
         montantInput.value = '';
         noteInput.value = '';
         isPaidCheckbox.checked = false;
@@ -199,82 +270,72 @@ async function addLocalColis() {
         alert("Erreur lors du traitement de la photo.");
     } finally {
         addColisBtn.disabled = false;
-        addColisBtn.textContent = "+ AJOUTER LE COLIS";
+        addColisBtn.textContent = "AJOUTER";
     }
 }
 
 function renderPendingColis(animateLast = false) {
-    localColisGrid.innerHTML = '';
+    localColisGrid.replaceChildren();
     let total = 0;
+    const hasCart = pendingColis.length > 0;
 
-    if (pendingColis.length > 0) {
-        gridTitle.style.display = 'flex';
-        stickyFooter.style.display = 'flex';
-    } else {
-        gridTitle.style.display = 'none';
-        stickyFooter.style.display = 'none';
-    }
+    gridTitle.style.display = hasCart ? 'block' : 'none';
+    emptyCart.classList.toggle('hidden', hasCart);
+    stickyFooter.style.display = hasCart ? 'flex' : 'none';
+    parcelScroll.classList.toggle('has-cart', hasCart);
 
     pendingColis.forEach((colis, index) => {
         total += colis.valeur;
-
         const card = document.createElement('div');
         card.className = 'photo-card';
         card.id = `colisCard-${colis.id}`;
-        
+        if (animateLast && index === pendingColis.length - 1) {
+            card.style.animation = 'dispatch-add .24s ease-out both';
+        }
+
         const img = document.createElement('img');
         img.src = colis.previewUrl;
-        
+        img.alt = `Colis ${index + 1}`;
+        img.loading = 'lazy';
+
         const overlay = document.createElement('div');
         overlay.className = 'photo-overlay flex justify-between items-center';
-        
+
         const price = document.createElement('span');
         price.textContent = colis.valeur === 0 ? 'PAYÉ' : colis.valeur.toLocaleString('fr-FR') + ' F';
-        if (colis.valeur === 0) price.style.color = 'var(--success)';
+        if (colis.valeur === 0) price.style.color = '#86EFAC';
 
         const delBtn = document.createElement('button');
-        delBtn.textContent = 'Supprimer';
+        delBtn.type = 'button';
+        delBtn.textContent = '×';
+        delBtn.setAttribute('aria-label', `Retirer le colis ${index + 1}`);
         delBtn.style.background = 'var(--danger)';
         delBtn.style.border = 'none';
         delBtn.style.color = 'white';
-        delBtn.style.padding = '4px 8px';
-        delBtn.style.borderRadius = '4px';
-        delBtn.style.fontSize = '0.8rem';
-        
-        delBtn.onclick = () => {
-            // Animation de suppression
-            gsap.to(card, { 
-                scale: 0.8, opacity: 0, duration: 0.3, 
-                onComplete: () => {
-                    pendingColis.splice(index, 1);
-                    renderPendingColis();
-                }
-            });
-        };
+        delBtn.style.borderRadius = '5px';
+        delBtn.style.cursor = 'pointer';
+        delBtn.addEventListener('click', () => {
+            if (isValidating) return;
+            pendingColis = pendingColis.filter(item => item.id !== colis.id);
+            URL.revokeObjectURL(colis.previewUrl);
+            renderPendingColis();
+        });
 
-        overlay.appendChild(price);
-        overlay.appendChild(delBtn);
-        card.appendChild(img);
-        card.appendChild(overlay);
-
+        overlay.append(price, delBtn);
+        card.append(img, overlay);
         localColisGrid.appendChild(card);
-        
-        // Animation du nouvel élément
-        if (animateLast && index === pendingColis.length - 1) {
-            gsap.to(card, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(1.5)" });
-        } else {
-            gsap.set(card, { scale: 1, opacity: 1 });
-        }
     });
 
-    localColisCount.textContent = pendingColis.length;
+    localColisCount.textContent = String(pendingColis.length);
     localTotal.textContent = total.toLocaleString('fr-FR') + ' F';
-    validateAllBtn.disabled = pendingColis.length === 0;
+    validateAllBtn.disabled = !hasCart || isValidating;
 }
 
 async function validateAllColis() {
-    if (!selectedLivreur || pendingColis.length === 0) return;
-    
+    if (!selectedLivreur || pendingColis.length === 0 || isValidating) return;
+    isValidating = true;
+    livreurSelect.disabled = true;
+    addColisBtn.disabled = true;
     validateAllBtn.disabled = true;
     validateAllBtn.textContent = "VALIDATION EN COURS...";
     
@@ -382,7 +443,11 @@ async function validateAllColis() {
             alert(createdNewSortie ? "Nouvelle tournée créée avec succès !" : "Colis ajoutés à la tournée avec succès !");
             
             // Reset UX (garder le même livreur pour une saisie en chaîne)
+            pendingColis.forEach(colis => URL.revokeObjectURL(colis.previewUrl));
             pendingColis = [];
+            isValidating = false;
+            livreurSelect.disabled = false;
+            addColisBtn.disabled = false;
             renderPendingColis();
             progressStatusContainer.classList.add('hidden');
             progressContainer.style.display = 'none';
@@ -400,11 +465,15 @@ async function validateAllColis() {
         
         // Garder uniquement les colis qui n'ont pas encore été confirmés.
         // Ainsi RÉESSAYER ne renvoie jamais une photo/UUID déjà enregistré.
+        pendingColis.filter(c => c.status === 'saved').forEach(c => URL.revokeObjectURL(c.previewUrl));
         pendingColis = pendingColis.filter(c => c.status !== 'saved');
+        isValidating = false;
+        livreurSelect.disabled = false;
+        addColisBtn.disabled = false;
         renderPendingColis();
 
         // Reset bouton mais garde uniquement les colis non confirmés
-        validateAllBtn.disabled = false;
+        validateAllBtn.disabled = pendingColis.length === 0;
         validateAllBtn.textContent = "RÉESSAYER";
         progressText.textContent = "Erreur...";
         progressText.style.color = "var(--danger)";
