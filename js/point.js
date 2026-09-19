@@ -111,6 +111,7 @@ let viewerItems = [];
 let viewerIndex = -1;
 let lastViewerTrigger = null;
 let renderVersion = 0;
+let pointReadSequence = 0;
 
 const signedUrlCache = new Map();
 
@@ -163,8 +164,10 @@ async function init() {
     }, {
       intervalMs: 30000,
       shouldRefresh: () => !photoInput.files?.length && !pointViewer.classList.contains('open')
+        && ![montantInput, noteInput, fraisMontant, fraisMotif].some(input => input.value.trim())
+        && ![...livraisonsList.querySelectorAll('input')].some(input => input.value.trim())
         && !document.activeElement?.matches('input, textarea, [contenteditable="true"]')
-        && ![addColisBtn, confirmRetoursBtn, addFraisBtn, cloturerBtn].some(button => button.disabled && button.textContent.includes('...'))
+        && ![addColisBtn, confirmRetoursBtn, addFraisBtn, cloturerBtn].some(button => button.disabled)
     });
   } catch (error) {
     console.error('Initialisation Point:', error);
@@ -293,6 +296,7 @@ function setupUI() {
 }
 
 function resetSelection() {
+  ++pointReadSequence;
   cleanupRealtime();
   closePhotoViewer();
   ++renderVersion;
@@ -370,12 +374,16 @@ async function loadSortiesEnCours() {
 
 async function refreshPointData() {
   if (!currentSortieId) return;
+  const sortieId = currentSortieId;
+  const request = ++pointReadSequence;
 
   const [resumeRes, colisRes, opsRes] = await Promise.all([
-    supabase.from('v_sorties_resume').select('*').eq('id', currentSortieId).maybeSingle(),
-    supabase.from('colis').select('*').eq('sortie_id', currentSortieId).order('created_at', { ascending: true }),
-    supabase.from('sortie_operations').select('*').eq('sortie_id', currentSortieId).order('created_at', { ascending: true })
+    supabase.from('v_sorties_resume').select('*').eq('id', sortieId).maybeSingle(),
+    supabase.from('colis').select('*').eq('sortie_id', sortieId).order('created_at', { ascending: true }),
+    supabase.from('sortie_operations').select('*').eq('sortie_id', sortieId).order('created_at', { ascending: true })
   ]);
+  // Ignore replies from a previously selected tour or an outdated concurrent refresh.
+  if (sortieId !== currentSortieId || request !== pointReadSequence) return;
 
   if (resumeRes.error) throw resumeRes.error;
   if (colisRes.error) throw colisRes.error;
@@ -761,7 +769,7 @@ async function renderLivraisons() {
     const row = document.createElement('div');
     row.className = 'point-colis-row';
 
-    row.appendChild(await photoElement(colis.photo_path));
+    row.appendChild(await photoElement(colis));
 
     const main = document.createElement('div');
     main.className = 'point-colis-main';
