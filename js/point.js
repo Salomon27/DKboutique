@@ -167,7 +167,8 @@ async function init() {
         && ![montantInput, noteInput, fraisMontant, fraisMotif].some(input => input.value.trim())
         && ![...livraisonsList.querySelectorAll('input')].some(input => input.value.trim())
         && !document.activeElement?.matches('input, textarea, [contenteditable="true"]')
-        && ![addColisBtn, confirmRetoursBtn, addFraisBtn, cloturerBtn].some(button => button.disabled)
+        && ![addColisBtn, confirmRetoursBtn, addFraisBtn, cloturerBtn].some(button =>
+          button.textContent.includes('TRAITEMENT') || button.textContent.includes('CONFIRMATION...') || button.textContent.includes('CLÔTURE...'))
     });
   } catch (error) {
     console.error('Initialisation Point:', error);
