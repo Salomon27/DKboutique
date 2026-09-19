@@ -241,14 +241,15 @@ function setupUI() {
 
       panels.forEach(p => p.classList.remove('active'));
       tabs.forEach(b => {
-        b.classList.remove('btn-primary');
-        b.classList.add('btn-outline');
+        b.classList.remove('active');
+        b.setAttribute('aria-expanded', 'false');
       });
 
       if (!wasOpen) {
         panel.classList.add('active');
-        tab.classList.remove('btn-outline');
-        tab.classList.add('btn-primary');
+        tab.classList.add('active');
+        tab.setAttribute('aria-expanded', 'true');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     });
   });
@@ -422,6 +423,189 @@ function renderHeader() {
   livresCount.textContent = String(Number(currentResume.nb_livres || 0));
   retoursSignalesCount.textContent = String(Number(currentResume.nb_retour_signale || 0));
   attenteCount.textContent = String(Number(currentResume.nb_en_attente || 0));
+}
+
+function colisStatus(colis) {
+  if (hasOperation(colis.id, 'retour')) return 'retour';
+  if (colis.statut_livreur === 'retourne') return 'signale';
+  if (colis.statut_livreur === 'livre') return 'livre';
+  return 'attente';
+}
+
+function filteredGalleryColis() {
+  if (galleryFilter === 'tous') return currentColis;
+  if (galleryFilter === 'paye') return currentColis.filter(colis => Number(colis.valeur) === 0);
+  if (galleryFilter === 'signale') return currentColis.filter(colis => ['signale','retour'].includes(colisStatus(colis)));
+  return currentColis.filter(colis => colisStatus(colis) === galleryFilter);
+}
+
+function makeGalleryCard(colis, index) {
+  const card = document.createElement('article');
+  card.className = 'point-gallery-card';
+  card.dataset.status = colisStatus(colis);
+  const picture = document.createElement('div');
+  picture.className = 'point-gallery-photo';
+  const photoButton = document.createElement('button');
+  photoButton.className = 'point-thumb-button';
+  photoButton.type = 'button';
+  photoButton.setAttribute('aria-label', `Agrandir la photo du colis ${index + 1}`);
+
+  const fallback = document.createElement('div');
+  fallback.className = 'point-photo-placeholder';
+  fallback.textContent = colis.photo_path ? 'Chargement photo…' : 'Photo indisponible';
+  photoButton.appendChild(fallback);
+  picture.appendChild(photoButton);
+
+  const number = document.createElement('span');
+  number.className = 'point-photo-number';
+  number.textContent = `N° ${index + 1}`;
+  picture.appendChild(number);
+
+  const info = document.createElement('div');
+  info.className = 'point-gallery-info';
+
+  const amount = document.createElement('div');
+  amount.className = 'point-gallery-money';
+  amount.textContent = Number(colis.valeur) === 0 ? 'PAYÉ · 0 F' : formatFcfa(colis.valeur);
+
+  const note = document.createElement('div');
+  note.className = 'point-gallery-note';
+  note.textContent = colis.commentaire || (colis.source === 'ajout' ? 'Colis ajouté' : 'Colis initial');
+
+  const flags = document.createElement('div');
+  flags.className = 'point-gallery-flags';
+
+  const status = colisStatus(colis);
+  const statusLabel = {
+    livre: 'LIVRÉ', retour: 'RETOUR CONFIRMÉ', signale: 'RETOUR SIGNALÉ', attente: 'EN ATTENTE'
+  };
+  const statusBadge = document.createElement('span');
+  statusBadge.className = `point-flag ${status}`;
+  statusBadge.textContent = statusLabel[status];
+  flags.appendChild(statusBadge);
+
+  if (colis.source === 'ajout') {
+    const added = document.createElement('span');
+    added.className = 'point-flag';
+    added.textContent = 'AJOUT';
+    flags.appendChild(added);
+  }
+  if (Number(colis.valeur) === 0) {
+    const paid = document.createElement('span');
+    paid.className = 'point-flag paye';
+    paid.textContent = 'PAYÉ';
+    flags.appendChild(paid);
+  }
+  info.append(amount, note, flags);
+  card.append(picture, info);
+  return { card, photoButton, fallback, picture };
+}
+
+async function renderGallery() {
+  const sortieId = currentSortieId;
+  const ticket = ++renderVersion;
+  galleryGrid.replaceChildren();
+  if (!sortieId || !currentResume) return;
+
+  const rows = filteredGalleryColis();
+  galleryCount.textContent = galleryFilter === 'tous'
+    ? `${currentColis.length} colis` : `${rows.length} / ${currentColis.length}`;
+  if (!rows.length) {
+    const empty = document.createElement('div');
+    empty.className = 'point-photo-placeholder';
+    empty.style.minHeight = '92px';
+    empty.textContent = 'Aucun colis pour ce filtre.';
+    galleryGrid.appendChild(empty);
+    return;
+  }
+
+  const jobs = [];
+  const numbers = new Map(currentColis.map((colis, i) => [colis.id, i + 1]));
+  for (const colis of rows) {
+    const {card, photoButton, fallback, picture} = makeGalleryCard(colis, numbers.get(colis.id));
+    galleryGrid.appendChild(card);
+    if (!colis.photo_path) {
+      photoButton.disabled = true;
+      continue;
+    }
+    jobs.push(async () => {
+      const url = await getSignedPhotoUrl(colis.photo_path);
+      if (ticket !== renderVersion || sortieId !== currentSortieId || !card.isConnected) return;
+      if (!url) {
+        fallback.textContent = 'Photo indisponible';
+        photoButton.disabled = true;
+        return;
+      }
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.alt = `Photo du colis ${numbers.get(colis.id)}`;
+      img.src = url;
+      photoButton.replaceChildren(img);
+      const zoom = document.createElement('span');
+      zoom.className = 'point-photo-zoom';
+      zoom.textContent = 'AGRANDIR';
+      picture.appendChild(zoom);
+      photoButton.addEventListener('click', () => openPhotoViewerForColis(colis, photoButton));
+    });
+  }
+  // Limit concurrent signed URL requests and leave cards visible while images load.
+  for (let i = 0; i < jobs.length; i += 6) {
+    if (ticket !== renderVersion || sortieId !== currentSortieId) break;
+    await Promise.all(jobs.slice(i, i + 6).map(job => job()));
+  }
+}
+
+function closePhotoViewer() {
+  if (!pointViewer.classList.contains('open')) return;
+  pointViewer.classList.remove('open');
+  pointViewer.setAttribute('aria-hidden','true');
+  pointViewerImage.removeAttribute('src');
+  viewerIndex = -1;
+  viewerItems = [];
+  if (lastViewerTrigger?.isConnected) lastViewerTrigger.focus();
+  lastViewerTrigger = null;
+}
+
+async function showViewerPhoto() {
+  const activeIndex = viewerIndex;
+  const colis = viewerItems[activeIndex];
+  if (!colis) return;
+  pointViewerTitle.textContent = `COLIS ${currentColis.findIndex(item => item.id === colis.id) + 1} / ${currentColis.length}`;
+  pointViewerDesc.textContent = [
+    Number(colis.valeur) === 0 ? 'PAYÉ · 0 F' : formatFcfa(colis.valeur),
+    colis.source === 'ajout' ? 'Ajout' : 'Initial',
+    colis.commentaire || ''
+  ].filter(Boolean).join(' · ');
+  pointViewerPrev.disabled = activeIndex <= 0;
+  pointViewerNext.disabled = activeIndex >= viewerItems.length - 1;
+  pointViewerImage.removeAttribute('src');
+  const url = await getSignedPhotoUrl(colis.photo_path);
+  if (!pointViewer.classList.contains('open') || viewerIndex !== activeIndex) return;
+  if (url) pointViewerImage.src = url;
+  else pointViewerDesc.textContent += ' · Photo indisponible';
+}
+
+function openPhotoViewerForColis(colis, trigger = null) {
+  if (!colis?.photo_path) return;
+  lastViewerTrigger = trigger || document.activeElement;
+  viewerItems = filteredGalleryColis().filter(item => Boolean(item.photo_path));
+  viewerIndex = viewerItems.findIndex(item => item.id === colis.id);
+  if (viewerIndex < 0) {
+    viewerItems = currentColis.filter(item => Boolean(item.photo_path));
+    viewerIndex = viewerItems.findIndex(item => item.id === colis.id);
+  }
+  if (viewerIndex < 0) return;
+  pointViewer.classList.add('open');
+  pointViewer.setAttribute('aria-hidden','false');
+  pointViewerClose.focus();
+  showViewerPhoto().catch(error => console.error('Ouverture photo:', error));
+}
+
+function navigateViewer(direction) {
+  const next = viewerIndex + direction;
+  if (next < 0 || next >= viewerItems.length) return;
+  viewerIndex = next;
+  showViewerPhoto().catch(error => console.error('Navigation photos:', error));
 }
 
 async function photoElement(colis) {
