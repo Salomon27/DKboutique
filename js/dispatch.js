@@ -266,8 +266,7 @@ async function handlePhotoChange(event) {
     cameraPreview.style.display = 'block';
     photoPlaceholder.style.display = 'none';
     updateStage();
-    // Après la photo, afficher montant et bouton AJOUTER en mode compact.
-    if (!isPaidCheckbox.checked) montantInput.focus({ preventScroll: true });
+    // Le clavier reste fermé pour laisser voir la transition vers la saisie compacte.
 }
 
 async function addLocalColis() {
@@ -382,6 +381,10 @@ function renderPendingColis(animateLast = false) {
 
 async function validateAllColis() {
     if (!selectedLivreur || pendingColis.length === 0 || isValidating) return;
+    if (photoInput.files?.length) {
+        alert('Une photo est encore en préparation. Ajoutez ce colis avant de valider la tournée, ou choisissez une autre photo.');
+        return;
+    }
     isValidating = true;
     livreurSelect.disabled = true;
     updateStage();
