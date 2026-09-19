@@ -1,5 +1,6 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
+import { enableAutoSync } from './auto-sync.js';
 import { compressImage } from './colis-utils.js';
 
 const tourneeSelect = document.getElementById('tourneeSelect');
@@ -156,6 +157,15 @@ async function init() {
     if (!currentProfileId) throw new Error('Profil Gérant introuvable. Reconnectez-vous.');
     setupUI();
     await loadSortiesEnCours();
+    enableAutoSync(async () => {
+      if (currentSortieId) await refreshPointData();
+      await loadSortiesEnCours();
+    }, {
+      intervalMs: 30000,
+      shouldRefresh: () => !photoInput.files?.length && !pointViewer.classList.contains('open')
+        && !document.activeElement?.matches('input, textarea, [contenteditable="true"]')
+        && ![addColisBtn, confirmRetoursBtn, addFraisBtn, cloturerBtn].some(button => button.disabled && button.textContent.includes('...'))
+    });
   } catch (error) {
     console.error('Initialisation Point:', error);
     displayLoadError(error);
