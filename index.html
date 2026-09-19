@@ -310,10 +310,7 @@
         </div>
     </div>
 
-    <!-- Scripts métier avec cache-busting pour forcer le rafraîchissement -->
-    <script type="module" src="js/config.js?v=5"></script>
-    <script type="module" src="js/auth.js?v=5"></script>
-    <script type="module" src="js/auth-motion.js?v=5"></script>
-    <script type="module" src="js/app.js?v=5"></script>
+    <!-- Une seule entrée module : app.js importe auth.js, auth-motion.js et config.js. -->
+    <script type="module" src="js/app.js?v=6"></script>
 </body>
 </html>
