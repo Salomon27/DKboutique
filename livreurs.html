@@ -2,63 +2,64 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Équipe - DK Boutique</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Équipe · DK Boutique</title>
   <meta name="theme-color" content="#F4F7FB">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css?v=11">
+  <link rel="stylesheet" href="css/management-pro.css?v=1">
 </head>
-<body>
+<body class="dk-management">
   <header class="app-header">
-    <div>
-      <h1 class="header-title" style="margin:0;">ÉQUIPE</h1>
-      <div class="text-sm text-muted">Livreurs et accès</div>
+    <div class="dk-page-brand">
+      <span class="dk-page-mark" aria-hidden="true">DK</span>
+      <div><div class="dk-page-kicker">DK BOUTIQUE</div><h1 class="header-title">Équipe</h1></div>
     </div>
-    <a href="zones.html" id="zonesLink" class="btn btn-outline small-action">Zones</a>
+    <a href="zones.html" id="zonesLink" class="btn btn-outline dk-header-action hidden">Zones</a>
   </header>
-
-  <main class="page-shell">
-    <section id="createSection" class="card mb-4 hidden">
-      <div class="page-title-row">
-        <div>
-          <h2 style="margin:0;">Nouveau livreur</h2>
-          <div class="text-sm text-muted">Le compte et le code d'accès sont créés ensemble.</div>
-        </div>
+  <main class="dk-manage-shell">
+    <div class="dk-title-row">
+      <div><div class="dk-eyebrow">ACCÈS ET LIVRAISONS</div><h2 class="dk-section-title">Livreurs</h2><p id="teamMeta" class="dk-section-sub" aria-live="polite">Chargement…</p></div>
+      <div class="dk-action-row">
+        <button id="refreshTeamBtn" class="btn btn-outline" type="button">Actualiser</button>
+        <button id="toggleCreateBtn" class="btn btn-primary hidden" type="button" aria-expanded="false">+ Ajouter</button>
       </div>
-
-      <div class="form-group">
-        <label for="newNom">Nom complet</label>
-        <input id="newNom" class="form-control" autocomplete="off">
-      </div>
-      <div class="form-group">
-        <label for="newTel">Téléphone</label>
-        <input id="newTel" class="form-control" type="tel" inputmode="tel">
-      </div>
-      <div class="form-group">
-        <label for="newZone">Zone principale</label>
-        <select id="newZone" class="form-control"></select>
-      </div>
-      <div class="form-group">
-        <label for="newPin">Code PIN — 4 chiffres</label>
-        <input id="newPin" class="form-control" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*" autocomplete="new-password">
-      </div>
-      <button id="createLivreurBtn" class="btn btn-primary">CRÉER LE LIVREUR</button>
-    </section>
-
-    <div class="page-title-row">
-      <div>
-        <h2 style="margin:0;">Livreurs</h2>
-        <div id="teamMeta" class="text-sm text-muted">Chargement...</div>
-      </div>
-      <button id="toggleCreateBtn" class="btn btn-primary small-action hidden">+ Ajouter</button>
     </div>
 
-    <section class="card">
-      <div id="livreurList"></div>
+    <section class="dk-stat-grid" aria-label="Effectifs">
+      <div class="card dk-stat primary"><div class="dk-stat-label">Livreurs actifs</div><strong id="teamActive" class="dk-stat-value">—</strong></div>
+      <div class="card dk-stat"><div class="dk-stat-label">En tournée</div><strong id="teamOnTour" class="dk-stat-value">—</strong></div>
+      <div class="card dk-stat"><div class="dk-stat-label">Disponibles</div><strong id="teamAvailable" class="dk-stat-value">—</strong></div>
     </section>
-  </main>
 
-  <script type="module" src="js/livreurs.js?v=1"></script>
+    <section id="createSection" class="card dk-create-panel hidden" aria-label="Créer un livreur">
+      <div class="dk-title-row"><h2 class="dk-section-title">Nouveau livreur</h2><button id="closeCreateBtn" type="button" class="btn btn-outline dk-header-action">Fermer</button></div>
+      <div class="dk-form-grid">
+        <div class="form-group"><label for="newNom">Nom complet</label><input id="newNom" class="form-control" maxlength="120" autocomplete="off" required></div>
+        <div class="form-group"><label for="newTel">Téléphone</label><input id="newTel" class="form-control" type="tel" inputmode="tel" maxlength="35"></div>
+        <div class="form-group"><label for="newZone">Zone</label><select id="newZone" class="form-control" required></select></div>
+        <div class="form-group"><label for="newPin">PIN (4 chiffres)</label><input id="newPin" class="form-control" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*" autocomplete="new-password" required></div>
+      </div>
+      <button id="createLivreurBtn" class="btn btn-primary" type="button">CRÉER LE LIVREUR</button>
+      <p id="teamCreateFeedback" class="dk-section-sub" role="status"></p>
+    </section>
+
+    <section class="card dk-controls" aria-label="Rechercher et filtrer les livreurs">
+      <div><label for="searchLivreur">RECHERCHER</label><input id="searchLivreur" type="search" class="form-control" autocomplete="off" maxlength="80" placeholder="Nom, téléphone ou zone"></div>
+      <div><label for="zoneFilter">ZONE</label><select id="zoneFilter" class="form-control"><option value="">Toutes les zones</option></select></div>
+    </section>
+    <div id="teamFilters" class="dk-segment" aria-label="Filtrer par disponibilité">
+      <button type="button" data-status="tous" class="active" aria-pressed="true">Tous</button>
+      <button type="button" data-status="libre" aria-pressed="false">Disponibles</button>
+      <button type="button" data-status="tournee" aria-pressed="false">En tournée</button>
+      <button type="button" data-status="inactif" aria-pressed="false">Inactifs</button>
+    </div>
+
+    <div class="dk-title-row"><h2 class="dk-section-title">Répertoire</h2><span id="teamResults" class="dk-section-sub" aria-live="polite">—</span></div>
+    <section id="livreurList" class="dk-driver-grid" aria-label="Liste des livreurs"></section>
+    <div id="teamError" class="dk-error hidden" role="alert" style="margin-top:12px;"></div>
+  </main>
+  <script type="module" src="js/livreurs.js?v=2"></script>
   <script type="module" src="js/navigation.js?v=2"></script>
 </body>
 </html>
