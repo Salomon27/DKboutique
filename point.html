@@ -2,755 +2,181 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Le Point - DK Boutique</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#F4F7FB">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <title>Le Point · DK Boutique</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css?v=11">
-  <style>
-    body { min-height: 100dvh; }
-
-    .point-shell {
-      width: 100%;
-      max-width: 760px;
-      margin: 0 auto;
-      padding: 20px 12px 112px;
-    }
-
-    .tour-picker {
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-
-    .point-empty {
-      text-align: center;
-      padding: 34px 18px;
-    }
-
-    .point-empty-mark {
-      width: 58px;
-      height: 58px;
-      border-radius: 20px;
-      background: var(--primary-soft);
-      color: var(--primary);
-      display: grid;
-      place-items: center;
-      margin: 0 auto 14px;
-      font-size: 1.5rem;
-      font-weight: 900;
-    }
-
-    .tour-hero {
-      position: relative;
-      overflow: hidden;
-      padding: 20px;
-      margin-bottom: 14px;
-      background:
-        radial-gradient(circle at 92% 10%, rgba(37,99,235,.13), transparent 38%),
-        rgba(255,255,255,.97);
-    }
-
-    .tour-hero::after {
-      content: "";
-      position: absolute;
-      inset: 0 auto 0 0;
-      width: 4px;
-      background: var(--primary);
-      border-radius: 4px;
-    }
-
-    .tour-hero-top {
-      display: flex;
-      justify-content: space-between;
-      gap: 14px;
-      align-items: flex-start;
-    }
-
-    .tour-kicker {
-      font-size: .68rem;
-      font-weight: 900;
-      color: var(--primary);
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-
-    .tour-name {
-      font-size: 1.25rem;
-      line-height: 1.15;
-      font-weight: 900;
-      letter-spacing: -.03em;
-      margin-top: 4px;
-    }
-
-    .tour-zone {
-      color: var(--text-muted);
-      font-size: .82rem;
-      font-weight: 700;
-      margin-top: 4px;
-    }
-
-    .hero-amount {
-      text-align: right;
-      white-space: nowrap;
-    }
-
-    .hero-amount span {
-      display: block;
-      color: var(--text-muted);
-      font-size: .66rem;
-      font-weight: 800;
-      text-transform: uppercase;
-    }
-
-    .hero-amount strong {
-      display: block;
-      font-size: 1.32rem;
-      margin-top: 3px;
-    }
-
-    .tour-stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 7px;
-      margin-top: 18px;
-    }
-
-    .tour-stat {
-      border: 1px solid var(--border);
-      background: #F8FAFC;
-      border-radius: 14px;
-      padding: 10px 7px;
-      text-align: center;
-    }
-
-    .tour-stat strong {
-      display: block;
-      font-size: 1.02rem;
-      font-weight: 900;
-    }
-
-    .tour-stat span {
-      display: block;
-      font-size: .61rem;
-      color: var(--text-muted);
-      font-weight: 800;
-      margin-top: 2px;
-      text-transform: uppercase;
-    }
-
-    .action-tabs {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 9px;
-      margin: 14px 0;
-    }
-
-    .point-tab {
-      min-height: 52px;
-      font-size: .78rem;
-      font-weight: 900;
-      line-height: 1.2;
-      padding: 10px;
-    }
-
-    .point-panel {
-      display: none;
-      margin-bottom: 14px;
-    }
-
-    .point-panel.active {
-      display: block;
-      animation: panelIn .22s ease;
-    }
-
-    @keyframes panelIn {
-      from { opacity: 0; transform: translateY(-6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .panel-heading {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: flex-start;
-      margin-bottom: 14px;
-    }
-
-    .panel-heading h3 {
-      margin: 0;
-      font-size: 1rem;
-      font-weight: 900;
-    }
-
-    .panel-heading p {
-      margin-top: 4px;
-      color: var(--text-muted);
-      font-size: .77rem;
-      line-height: 1.4;
-    }
-
-    .photo-drop {
-      position: relative;
-      min-height: 190px;
-      border: 1.5px dashed #CBD5E1;
-      border-radius: 18px;
-      background: #F8FAFC;
-      overflow: hidden;
-      display: grid;
-      place-items: center;
-      margin-bottom: 14px;
-    }
-
-    .photo-drop input {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      opacity: 0;
-      cursor: pointer;
-    }
-
-    .photo-drop img {
-      width: 100%;
-      height: 220px;
-      object-fit: cover;
-      display: none;
-    }
-
-    .photo-drop-copy {
-      pointer-events: none;
-      text-align: center;
-      padding: 24px;
-      color: var(--text-muted);
-      font-size: .8rem;
-      font-weight: 700;
-    }
-
-    .point-colis-row {
-      display: grid;
-      grid-template-columns: 54px 1fr auto;
-      gap: 11px;
-      align-items: center;
-      padding: 11px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .point-colis-row:last-child { border-bottom: 0; }
-
-    .point-thumb {
-      width: 54px;
-      height: 54px;
-      border-radius: 13px;
-      object-fit: cover;
-      background: #EEF2F7;
-      border: 1px solid var(--border);
-    }
-
-    .point-thumb-empty {
-      width: 54px;
-      height: 54px;
-      border-radius: 13px;
-      background: #EEF2F7;
-      display: grid;
-      place-items: center;
-      color: var(--text-muted);
-      font-size: .65rem;
-      border: 1px solid var(--border);
-      text-align: center;
-    }
-
-    .point-colis-main { min-width: 0; }
-
-    .point-colis-title {
-      font-size: .86rem;
-      font-weight: 900;
-    }
-
-    .point-colis-meta {
-      font-size: .7rem;
-      color: var(--text-muted);
-      margin-top: 3px;
-      line-height: 1.35;
-    }
-
-    .signal-badge {
-      display: inline-block;
-      margin-top: 4px;
-      padding: 3px 7px;
-      border-radius: 999px;
-      font-size: .6rem;
-      font-weight: 900;
-      background: #FEF2F2;
-      color: #B91C1C;
-    }
-
-    .row-check {
-      width: 22px;
-      height: 22px;
-      accent-color: var(--danger);
-    }
-
-    .deduction-box {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      width: 118px;
-    }
-
-    .deduction-box input {
-      min-height: 38px;
-      padding: 7px 8px;
-      font-size: .8rem;
-    }
-
-    .deduction-box button {
-      min-height: 36px;
-      padding: 6px 8px;
-      font-size: .72rem;
-    }
-
-    .operation-list {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .operation-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      padding: 11px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .operation-row:last-child { border-bottom: 0; }
-
-    .operation-title {
-      font-size: .84rem;
-      font-weight: 900;
-    }
-
-    .operation-note {
-      color: var(--text-muted);
-      font-size: .72rem;
-      margin-top: 2px;
-    }
-
-    .operation-delete {
-      width: auto;
-      min-height: 36px;
-      padding: 6px 10px;
-      font-size: .7rem;
-      color: var(--danger);
-    }
-
-    .timeline {
-      position: relative;
-      padding-left: 20px;
-    }
-
-    .timeline::before {
-      content: "";
-      position: absolute;
-      left: 5px;
-      top: 8px;
-      bottom: 8px;
-      width: 2px;
-      background: var(--border);
-    }
-
-    .timeline-row {
-      position: relative;
-      padding: 0 0 16px 6px;
-    }
-
-    .timeline-row:last-child { padding-bottom: 0; }
-
-    .timeline-row::before {
-      content: "";
-      position: absolute;
-      left: -19px;
-      top: 5px;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--primary);
-      box-shadow: 0 0 0 4px #EFF6FF;
-    }
-
-    .timeline-top {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .timeline-type {
-      font-size: .78rem;
-      font-weight: 900;
-    }
-
-    .timeline-time {
-      color: var(--text-muted);
-      font-size: .66rem;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    .timeline-desc {
-      color: var(--text-muted);
-      font-size: .72rem;
-      margin-top: 2px;
-    }
-
-    .timeline-amount {
-      margin-top: 3px;
-      font-size: .8rem;
-      font-weight: 900;
-    }
-
-    .finance-card {
-      margin-top: 14px;
-      padding: 0;
-      overflow: hidden;
-    }
-
-    .finance-head {
-      padding: 16px 18px;
-      border-bottom: 1px solid var(--border);
-      background: linear-gradient(180deg, #F8FAFC, #FFFFFF);
-    }
-
-    .finance-head h3 {
-      margin: 0;
-      font-size: .95rem;
-      font-weight: 900;
-    }
-
-    .finance-body { padding: 16px 18px 8px; }
-
-    .finance-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 8px 0;
-      font-size: .82rem;
-    }
-
-    .finance-row strong { white-space: nowrap; }
-
-    .finance-net {
-      margin-top: 8px;
-      padding: 16px 18px;
-      background: var(--primary-soft);
-      border-top: 1px solid #BFDBFE;
-    }
-
-    .finance-net span {
-      display: block;
-      color: var(--primary);
-      font-size: .68rem;
-      font-weight: 900;
-      letter-spacing: .07em;
-      text-transform: uppercase;
-    }
-
-    .finance-net strong {
-      display: block;
-      margin-top: 3px;
-      font-size: 2rem;
-      line-height: 1;
-      letter-spacing: -.045em;
-    }
-
-    .control-card {
-      margin-top: 14px;
-      border: 1px solid #FDE68A;
-      background: #FFFBEB;
-      padding: 15px;
-      border-radius: 18px;
-    }
-
-    .control-card.ok {
-      border-color: #BBF7D0;
-      background: #F0FDF4;
-    }
-
-    .control-title {
-      font-size: .78rem;
-      font-weight: 900;
-      margin-bottom: 7px;
-    }
-
-    .control-list {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      font-size: .72rem;
-      color: #92400E;
-    }
-
-    .control-card.ok .control-list { color: #166534; }
-
-    .close-bar {
-      position: fixed;
-      left: 50%;
-      bottom: 12px;
-      transform: translateX(-50%);
-      width: min(calc(100% - 24px), 760px);
-      display: none;
-      grid-template-columns: 1fr auto;
-      gap: 10px;
-      align-items: center;
-      padding: 12px;
-      background: rgba(255,255,255,.96);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      box-shadow: 0 18px 45px rgba(15,23,42,.15);
-      backdrop-filter: blur(18px);
-      z-index: 110;
-    }
-
-    .close-bar.visible { display: grid; }
-
-    .close-bar span {
-      display: block;
-      color: var(--text-muted);
-      font-size: .66rem;
-      font-weight: 800;
-    }
-
-    .close-bar strong {
-      display: block;
-      font-size: 1.05rem;
-      margin-top: 1px;
-    }
-
-    .close-bar button {
-      width: auto;
-      min-width: 150px;
-      min-height: 48px;
-    }
-
-    .toast-stack {
-      position: fixed;
-      left: 50%;
-      top: 92px;
-      transform: translateX(-50%);
-      width: min(calc(100% - 32px), 420px);
-      z-index: 500;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      pointer-events: none;
-    }
-
-    .point-toast {
-      opacity: 0;
-      background: #0F172A;
-      color: white;
-      border-radius: 14px;
-      padding: 11px 14px;
-      font-size: .78rem;
-      font-weight: 700;
-      box-shadow: 0 16px 38px rgba(15,23,42,.18);
-    }
-
-    @media (max-width: 520px) {
-      .tour-stats { grid-template-columns: repeat(2, 1fr); }
-      .tour-hero-top { flex-direction: column; }
-      .hero-amount { text-align: left; }
-      .close-bar { grid-template-columns: 1fr; }
-      .close-bar button { width: 100%; }
-    }
-    .point-load-error {margin-top:12px;padding:10px 12px;border:1px solid #FECACA;border-radius:12px;background:#FFF1F2;color:#9F1239;font-size:.77rem;line-height:1.5;overflow-wrap:anywhere;}
-    .point-load-error strong {display:block;margin-bottom:4px;}
-    .point-load-error code {font-size:.71rem;}
-    .point-reload {margin-top:9px;width:100%;min-height:42px;font-size:.79rem;}
-  </style>
+  <link rel="stylesheet" href="css/point-pro.css?v=1">
 </head>
-<body>
+<body class="point-page">
   <header class="app-header">
-    <div>
-      <div class="text-sm text-muted" style="font-weight:800; margin-bottom:3px;">DK BOUTIQUE</div>
-      <h1 class="header-title">Le Point</h1>
+    <div class="point-brand">
+      <span class="point-mark" aria-hidden="true">DK</span>
+      <div>
+        <div class="point-brand-kicker">DK BOUTIQUE · GÉRANT</div>
+        <h1 class="header-title">Le Point</h1>
+      </div>
     </div>
-    <a href="dashboard.html" class="btn btn-outline small-action">Retour</a>
+    <div class="point-header-actions">
+      <a href="dashboard.html" class="btn btn-outline">Retour</a>
+    </div>
   </header>
 
   <main class="point-shell">
-    <section class="card tour-picker">
-      <div class="form-group" style="margin:0;">
-        <label for="tourneeSelect">Tournée à contrôler</label>
+    <section class="card point-picker" aria-label="Choix de tournée">
+      <div>
+        <label for="tourneeSelect">TOURNÉE ACTIVE</label>
         <select id="tourneeSelect" class="form-control">
-          <option value="">-- Choisir une tournée en cours --</option>
+          <option value="">Chargement…</option>
         </select>
       </div>
+      <button id="refreshPointBtn" type="button" class="point-refresh" aria-label="Actualiser les tournées">↻</button>
       <div id="tourneeLoadError" class="point-load-error hidden" role="alert"></div>
-      <button id="reloadTourneesBtn" type="button" class="btn btn-outline point-reload hidden">Réessayer le chargement</button>
+      <button id="reloadTourneesBtn" type="button" class="btn btn-outline point-reload hidden">Réessayer</button>
     </section>
 
     <section id="noSortieState" class="card point-empty">
-      <div class="point-empty-mark">DK</div>
-      <h2 style="margin-bottom:8px;">Sélectionnez une tournée</h2>
-      <p class="text-muted text-sm">Le contrôle financier, les retours, les frais et la clôture seront regroupés ici.</p>
+      <div class="point-empty-mark" aria-hidden="true">DK</div>
+      <h2>Choisir une tournée</h2>
+      <p>Colis, photos et encaissement.</p>
     </section>
 
     <section id="pointContent" class="hidden">
-      <article class="card tour-hero">
-        <div class="tour-hero-top">
+      <section class="card point-summary" aria-label="Synthèse de la tournée">
+        <div class="point-summary-top">
           <div>
-            <div class="tour-kicker">Tournée en cours</div>
-            <div class="tour-name" id="livreurName">Livreur</div>
-            <div class="tour-zone" id="zoneName">Zone</div>
+            <div class="point-overline">TOURNÉE ACTIVE</div>
+            <div class="point-driver" id="livreurName">Livreur</div>
+            <div class="point-zone" id="zoneName">Zone</div>
           </div>
-          <div class="hero-amount">
-            <span>Chargement actuel</span>
-            <strong id="chargementAmount">0 F</strong>
-          </div>
+          <span class="point-tour-state" id="pointTourState">EN COURS</span>
         </div>
-
-        <div class="tour-stats">
-          <div class="tour-stat"><strong id="totalColisCount">0</strong><span>Colis</span></div>
-          <div class="tour-stat"><strong id="livresCount">0</strong><span>Livrés</span></div>
-          <div class="tour-stat"><strong id="retoursSignalesCount">0</strong><span>Retours signalés</span></div>
-          <div class="tour-stat"><strong id="attenteCount">0</strong><span>En attente</span></div>
+        <div class="point-net-caption">NET À ENCAISSER</div>
+        <div class="point-net" id="mainNet">0 F</div>
+        <div class="point-stats">
+          <div class="point-stat"><strong id="totalColisCount">0</strong><span>Colis</span></div>
+          <div class="point-stat"><strong id="livresCount">0</strong><span>Livrés</span></div>
+          <div class="point-stat"><strong id="retoursSignalesCount">0</strong><span>Retours</span></div>
+          <div class="point-stat"><strong id="attenteCount">0</strong><span>En attente</span></div>
         </div>
-      </article>
-
-      <div class="action-tabs">
-        <button class="btn btn-outline point-tab" data-panel="panelAjout">+ COLIS</button>
-        <button class="btn btn-outline point-tab" data-panel="panelRetours">RETOURS</button>
-        <button class="btn btn-outline point-tab" data-panel="panelLivraisons">LIVRAISONS</button>
-        <button class="btn btn-outline point-tab" data-panel="panelFrais">FRAIS</button>
-      </div>
-
-      <section id="panelAjout" class="card point-panel">
-        <div class="panel-heading">
-          <div>
-            <h3>Colis supplémentaire</h3>
-            <p>Ajoutez un colis directement à la tournée active. Le livreur le recevra en temps réel.</p>
-          </div>
-        </div>
-
-        <div class="photo-drop">
-          <input type="file" id="photoInput" accept="image/*" capture="environment">
-          <img id="cameraPreview" alt="Aperçu">
-          <div id="photoPlaceholder" class="photo-drop-copy">Touchez ici pour prendre ou choisir la photo du colis.</div>
-        </div>
-
-        <div class="form-group">
-          <label for="montantInput">Montant à récupérer</label>
-          <input type="number" inputmode="numeric" id="montantInput" class="form-control" placeholder="Ex : 15000" min="0">
-        </div>
-
-        <label class="checkbox-wrapper mb-3">
-          <input type="checkbox" id="isPaidCheckbox">
-          <span>Colis déjà payé — 0 F</span>
-        </label>
-
-        <div class="form-group">
-          <label for="noteInput">Note facultative</label>
-          <input type="text" id="noteInput" class="form-control" maxlength="180" placeholder="Fragile, appeler le client...">
-        </div>
-
-        <button id="addColisBtn" class="btn btn-primary">AJOUTER À LA TOURNÉE</button>
+        <span id="chargementAmount" class="hidden">0 F</span>
       </section>
 
-      <section id="panelRetours" class="card point-panel">
-        <div class="panel-heading">
+      <section class="point-finance-strip" aria-label="Montants clés">
+        <div class="card point-mini"><span>Chargement</span><strong id="miniChargement">0 F</strong></div>
+        <div class="card point-mini is-positive"><span>Ajouts</span><strong id="miniAjouts">+0 F</strong></div>
+        <div class="card point-mini is-negative"><span>Retours</span><strong id="miniRetours">−0 F</strong></div>
+        <div class="card point-mini is-negative"><span>Déductions + frais</span><strong id="miniFrais">−0 F</strong></div>
+      </section>
+
+      <section class="card point-gallery-section" aria-labelledby="galleryTitle">
+        <div class="point-gallery-head">
           <div>
-            <h3>Confirmer les retours</h3>
-            <p>Les colis signalés RETOUR par le livreur sont placés en tête. La confirmation retire leur valeur du net.</p>
+            <h2 class="point-section-heading" id="galleryTitle">Colis de la tournée</h2>
+            <p class="point-section-sub">Touchez une photo pour vérifier.</p>
           </div>
-          <span class="badge badge-danger" id="pendingReturnBadge">0 À CONFIRMER</span>
+          <span id="galleryCount" class="point-gallery-count">0 colis</span>
         </div>
-
-        <div id="retoursList"></div>
-        <div class="text-sm font-bold text-center mt-3 mb-3" id="retoursSelectionInfo">0 colis sélectionné</div>
-        <button id="confirmRetoursBtn" class="btn btn-danger" disabled>CONFIRMER LA SÉLECTION</button>
+        <div id="galleryFilters" class="point-filters" aria-label="Filtrer les colis">
+          <button class="point-filter active" data-filter="tous" type="button" aria-pressed="true">Tous</button>
+          <button class="point-filter" data-filter="livre" type="button" aria-pressed="false">Livrés</button>
+          <button class="point-filter" data-filter="signale" type="button" aria-pressed="false">Retours</button>
+          <button class="point-filter" data-filter="attente" type="button" aria-pressed="false">En attente</button>
+          <button class="point-filter" data-filter="paye" type="button" aria-pressed="false">Déjà payés</button>
+        </div>
+        <div id="galleryGrid" class="point-gallery-grid" aria-live="polite"></div>
       </section>
 
-      <section id="panelLivraisons" class="card point-panel">
-        <div class="panel-heading">
-          <div>
-            <h3>Livraisons à déduire</h3>
-            <p>Uniquement pour les colis déjà payés à 0 F. Une seule déduction est autorisée par colis.</p>
+      <section class="point-actions-section" aria-label="Opérations sur la tournée">
+        <div class="point-actions-head">
+          <h2 class="point-section-heading">Opérations</h2>
+          <p class="point-section-sub">Retours, ajouts et déductions.</p>
+        </div>
+        <div class="point-actions">
+          <button class="point-tab" data-panel="panelRetours" type="button" aria-expanded="false"><span class="point-tab-icon">↩</span>Retours <span id="pendingReturnBadge">0</span></button>
+          <button class="point-tab" data-panel="panelAjout" type="button" aria-expanded="false"><span class="point-tab-icon">＋</span>Ajouter</button>
+          <button class="point-tab" data-panel="panelLivraisons" type="button" aria-expanded="false"><span class="point-tab-icon">−</span>Livraisons</button>
+          <button class="point-tab" data-panel="panelFrais" type="button" aria-expanded="false"><span class="point-tab-icon">≡</span>Frais</button>
+        </div>
+
+        <section id="panelRetours" class="card point-panel">
+          <div class="panel-heading"><div><h3>Retours à confirmer</h3><p>Vérifiez les photos avant de déduire.</p></div></div>
+          <div id="retoursList"></div>
+          <div id="retoursSelectionInfo" class="point-section-sub" style="margin:12px 0;text-align:center;">0 sélectionné</div>
+          <button id="confirmRetoursBtn" class="btn btn-danger" type="button" disabled>CONFIRMER LES RETOURS</button>
+        </section>
+
+        <section id="panelAjout" class="card point-panel">
+          <div class="panel-heading"><div><h3>Ajouter un colis</h3><p>Photo obligatoire.</p></div></div>
+          <div class="photo-drop">
+            <input type="file" id="photoInput" accept="image/*" capture="environment" aria-label="Photo du nouveau colis">
+            <img id="cameraPreview" alt="Photo du colis à ajouter">
+            <div id="photoPlaceholder" class="photo-drop-copy">＋ Ajouter une photo</div>
           </div>
-        </div>
-        <div id="livraisonsList"></div>
-      </section>
-
-      <section id="panelFrais" class="card point-panel">
-        <div class="panel-heading">
-          <div>
-            <h3>Autres frais</h3>
-            <p>Enregistrez uniquement les dépenses directement liées à cette tournée.</p>
+          <div class="point-entry-grid">
+            <div class="form-group"><label for="montantInput">Montant (FCFA)</label><input id="montantInput" type="number" inputmode="numeric" min="0" placeholder="0" class="form-control"></div>
+            <div class="form-group"><label for="noteInput">Note</label><input id="noteInput" type="text" maxlength="180" placeholder="Facultative" class="form-control"></div>
+            <label class="checkbox-wrapper point-full"><input id="isPaidCheckbox" type="checkbox"> Déjà payé (0 F)</label>
+            <button id="addColisBtn" class="btn btn-primary point-full" type="button">AJOUTER LE COLIS</button>
           </div>
-        </div>
+        </section>
 
-        <div class="form-group">
-          <label for="fraisMontant">Montant</label>
-          <input type="number" inputmode="numeric" id="fraisMontant" class="form-control" min="1" placeholder="Ex : 2000">
-        </div>
+        <section id="panelLivraisons" class="card point-panel">
+          <div class="panel-heading"><div><h3>Livraisons à déduire</h3><p>Colis déjà payés uniquement.</p></div></div>
+          <div id="livraisonsList"></div>
+        </section>
 
-        <div class="form-group">
-          <label for="fraisMotif">Motif</label>
-          <input type="text" id="fraisMotif" class="form-control" maxlength="180" placeholder="Transport, carburant...">
-        </div>
-
-        <button id="addFraisBtn" class="btn btn-primary mb-3">ENREGISTRER LE FRAIS</button>
-
-        <div class="operation-list" id="fraisList"></div>
-      </section>
-
-      <section class="card" style="margin-top:14px;">
-        <div class="panel-heading">
-          <div>
-            <h3>Chronologie</h3>
-            <p>Historique de ce qui a modifié la tournée et son montant.</p>
+        <section id="panelFrais" class="card point-panel">
+          <div class="panel-heading"><div><h3>Frais de tournée</h3></div></div>
+          <div class="point-entry-grid">
+            <div class="form-group"><label for="fraisMontant">Montant (FCFA)</label><input id="fraisMontant" type="number" inputmode="numeric" min="1" placeholder="0" class="form-control"></div>
+            <div class="form-group"><label for="fraisMotif">Motif</label><input id="fraisMotif" type="text" maxlength="180" placeholder="Transport…" class="form-control"></div>
+            <button id="addFraisBtn" class="btn btn-primary point-full" type="button">ENREGISTRER LE FRAIS</button>
           </div>
-        </div>
-        <div id="timelineContainer" class="timeline"></div>
+          <div id="fraisList" class="operation-list" style="margin-top:10px;"></div>
+        </section>
       </section>
 
-      <section class="card finance-card">
-        <div class="finance-head">
-          <h3>Récapitulatif financier</h3>
-        </div>
-
-        <div class="finance-body">
-          <div class="finance-row"><span>Chargement initial</span><strong id="recapChargement">0 F</strong></div>
-          <div class="finance-row"><span>Ajouts</span><strong id="recapAjouts" style="color:var(--success);">+0 F</strong></div>
-          <div class="finance-row"><span>Retours confirmés</span><strong id="recapRetours" style="color:var(--danger);">-0 F</strong></div>
-          <div class="finance-row"><span>Livraisons déduites</span><strong id="recapDeductions" style="color:var(--warning);">-0 F</strong></div>
-          <div class="finance-row"><span>Autres frais</span><strong id="recapFrais" style="color:var(--danger);">-0 F</strong></div>
-        </div>
-
-        <div class="finance-net">
-          <span>Net à encaisser</span>
-          <strong id="recapNet">0 F</strong>
-        </div>
+      <section class="card point-ledger" aria-label="Détail financier">
+        <div class="point-row-head"><h2 class="point-section-heading">Contrôle financier</h2><span class="point-overline">FCFA</span></div>
+        <div class="finance-row"><span>Départ</span><strong id="recapChargement">0 F</strong></div>
+        <div class="finance-row"><span>Ajouts</span><strong id="recapAjouts">+0 F</strong></div>
+        <div class="finance-row"><span>Retours confirmés</span><strong id="recapRetours">−0 F</strong></div>
+        <div class="finance-row"><span>Livraisons déduites</span><strong id="recapDeductions">−0 F</strong></div>
+        <div class="finance-row"><span>Frais</span><strong id="recapFrais">−0 F</strong></div>
+        <div class="finance-net"><span>NET À ENCAISSER</span><strong id="recapNet">0 F</strong></div>
       </section>
 
-      <section class="control-card" id="controlCard">
-        <div class="control-title" id="controlTitle">Contrôle avant clôture</div>
+      <section class="point-audit" id="controlCard" aria-live="polite">
+        <div class="control-title" id="controlTitle">Contrôle de clôture</div>
         <div class="control-list" id="controlList"></div>
       </section>
+
+      <details class="card point-ledger point-extra">
+        <summary>Historique des opérations</summary>
+        <div id="timelineContainer" class="timeline" style="margin-top:12px;"></div>
+      </details>
     </section>
   </main>
 
   <div class="close-bar" id="closeBar">
-    <div>
-      <span>NET À ENCAISSER</span>
-      <strong id="closeBarNet">0 F</strong>
-    </div>
-    <button id="cloturerBtn" class="btn btn-primary">VALIDER L'ENCAISSEMENT</button>
+    <div><span>NET À ENCAISSER</span><strong id="closeBarNet">0 F</strong></div>
+    <button id="cloturerBtn" class="btn btn-primary" type="button" disabled>VALIDER L'ENCAISSEMENT</button>
   </div>
 
-  <div class="toast-stack" id="toastStack"></div>
+  <div id="pointViewer" class="point-viewer" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Photo du colis">
+    <div class="point-viewer-head"><span id="pointViewerTitle">COLIS</span><button id="pointViewerClose" class="point-viewer-close" type="button">FERMER ×</button></div>
+    <img id="pointViewerImage" alt="Photo du colis agrandie">
+    <div id="pointViewerDesc" class="point-viewer-desc"></div>
+    <div class="point-viewer-prev-next">
+      <button id="pointViewerPrev" type="button">← Précédent</button><button id="pointViewerNext" type="button">Suivant →</button>
+    </div>
+  </div>
 
+  <div class="toast-stack" id="toastStack" role="status"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-  <script type="module" src="js/point.js?v=11"></script>
+  <script type="module" src="js/point.js?v=12"></script>
   <script type="module" src="js/navigation.js?v=2"></script>
 </body>
 </html>
