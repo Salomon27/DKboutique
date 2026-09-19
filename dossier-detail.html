@@ -49,6 +49,11 @@
     .photo-viewer img {max-width:100%;max-height:100%;object-fit:contain;border-radius:12px;}
     .photo-viewer button {position:absolute;right:18px;top:12px;min-height:38px;width:auto;background:white;color:#0F172A;font-weight:900;}
     @media (max-width:420px) {.event-top {flex-direction:column;gap:2px;}.event-time {white-space:normal;}.parcel-grid {gap:8px;}.parcel-body {padding:9px;}}
+    .dossier-correct-btn {display:block;margin-top:10px;width:100%;min-height:36px;background:#F8FAFC;color:#64748B;border:1px solid #DCE4EF;border-radius:9px;font-size:.72rem;font-weight:850;cursor:pointer;}
+    .dossier-correct-btn:focus-visible {outline:2px solid #2563EB;outline-offset:2px;}
+    .dossier-correct-btn:hover {background:#FFF1F2;color:#9F1239;border-color:#FDA4AF;}
+    .correction-audit-item {padding:10px 0;border-bottom:1px solid #E5ECF5;font-size:.75rem;line-height:1.5;}
+    .correction-audit-item:last-child {border:0;}
   </style>
   <link rel="stylesheet" href="css/tablet-sync.css?v=1">
 </head>
@@ -104,6 +109,12 @@
       <h2 id="auditTitle">Contrôle de cohérence</h2>
       <div id="auditDetails"><p>Chargement du contrôle…</p></div>
     </section>
+
+    <details id="correctionsPanel" class="card dossier-section hidden" style="margin-bottom:14px;">
+      <summary style="cursor:pointer;font-weight:900;font-size:.9rem;">Rectifications de saisie <span id="correctionsCount"></span></summary>
+      <p class="text-sm text-muted" style="margin:9px 0;">Ces corrections ne constituent ni des retours ni des transactions. Les totaux affichés sont recalculés.</p>
+      <div id="correctionsList"></div>
+    </details>
 
     <section class="card dossier-section">
       <h2>Chronologie enregistrée</h2>
