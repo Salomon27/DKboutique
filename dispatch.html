@@ -279,6 +279,63 @@
     .parcel-viewer-note {font-size:.83rem;font-weight:800;color:#FFF;text-align:center;}
     @media (min-width:620px) {.dispatch-photo-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
     @media (max-width:360px) {.dispatch-footer #validateAllBtn{font-size:.79rem;}.stage-queue .dispatch-note-row,.stage-preview .dispatch-note-row{grid-template-columns:minmax(0,1fr) 91px;}.stage-queue .compact-add.btn,.stage-preview .compact-add.btn{width:91px;}}
+
+    /* Champ montant accessible sur mobile : grand espace tactile + bouton de sortie clavier. */
+    .stage-queue .amount-box, .stage-preview .amount-box {
+      height:82px!important; min-height:82px;
+      padding:7px 10px!important; justify-content:space-between;
+      border-radius:12px;
+    }
+    .stage-queue .camera-container, .stage-preview .camera-container {height:82px;width:76px;}
+    .stage-queue .dispatch-capture-row, .stage-preview .dispatch-capture-row {
+      grid-template-columns:76px minmax(0,1fr);align-items:stretch;
+    }
+    .amount-entry {display:flex; align-items:center; min-height:39px;gap:6px;min-width:0;}
+    .amount-entry #montantInput {display:block; min-height:39px!important; height:39px!important;flex:1 1 auto;min-width:0;font-size:1.25rem!important;line-height:1.2;padding:0 2px!important;appearance:textfield;-moz-appearance:textfield;}
+    .amount-entry #montantInput::-webkit-inner-spin-button,.amount-entry #montantInput::-webkit-outer-spin-button {-webkit-appearance:none;margin:0;}
+    .amount-done {flex:0 0 41px;min-height:35px;border:1px solid #BBD1F7;border-radius:9px;background:#EDF4FF;color:#1D4ED8;font:900 .72rem inherit;cursor:pointer;}
+    .amount-done:focus-visible {outline:2px solid #2563EB;outline-offset:2px;}
+    .amount-done:active {background:#DBEAFE;}
+    .amount-box:focus-within {border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,.10);}
+    .stage-capture .amount-box {display:none!important;}
+    .stage-queue .paid-option,.stage-preview .paid-option {font-size:.62rem;min-height:19px;}
+    /* The old footer was a flex row: it pushed its button outside the viewport. */
+    .dispatch-footer.sticky-footer {
+      box-sizing:border-box!important; display:none;
+      flex-direction:column!important; align-items:stretch!important;
+      justify-content:flex-start!important; gap:7px!important;
+      left:50%!important;right:auto!important;inset-inline:auto!important;
+      transform:translateX(-50%)!important;
+      width:calc(100vw - 26px)!important;max-width:600px!important;
+      bottom:calc(12px + env(safe-area-inset-bottom))!important;
+      padding:11px 12px 12px!important;
+      overflow:hidden;
+    }
+    .dispatch-footer .recap-row {
+      display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;
+      width:100%;min-width:0;gap:8px;align-items:center;
+    }
+    .dispatch-footer .recap-row span,.dispatch-footer .recap-row strong {min-width:0;white-space:nowrap;}
+    .dispatch-footer #validateAllBtn {
+      box-sizing:border-box!important;display:flex!important;
+      flex:0 0 auto!important;max-width:100%!important;min-width:0!important;
+      white-space:normal!important;line-height:1.2;text-align:center;
+      overflow-wrap:normal!important;padding:10px 12px!important;
+      margin:0!important;transform:none;
+    }
+    .dispatch-validation-error {
+      width:100%;min-width:0;padding:8px 10px;border-radius:10px;
+      border:1px solid #FECACA;background:#FFF1F2;color:#991B1B;
+      font-size:.72rem;line-height:1.4;overflow-wrap:anywhere;
+    }
+    .dispatch-validation-error strong {display:block;font-size:.75rem;}
+    .dispatch-validation-error summary {cursor:pointer;font-weight:800;margin-top:3px;}
+    #dispatchErrorDetail {font-size:.7rem;white-space:pre-wrap;padding:5px 0 0;overflow-wrap:anywhere;}
+    .stage-queue .dispatch-list-panel,.stage-preview .dispatch-list-panel {padding-bottom:205px;}
+    @media (max-width:360px) {
+      .dispatch-footer #validateAllBtn {font-size:.8rem!important;}
+      .dispatch-footer #localTotal {font-size:.96rem;}
+    }
   </style>
 </head>
 <body class="dispatch-page stage-select">
@@ -338,7 +395,10 @@
           </div>
           <div class="amount-box">
             <span class="amount-overline">À ENCAISSER · FCFA</span>
-            <input id="montantInput" type="number" inputmode="numeric" min="0" placeholder="Montant F" aria-label="Montant à récupérer en francs CFA">
+            <div class="amount-entry">
+              <input id="montantInput" type="number" inputmode="numeric" min="0" placeholder="Montant F" aria-label="Montant à récupérer en francs CFA" enterkeyhint="done">
+              <button id="amountDoneBtn" class="amount-done" type="button" aria-label="Terminer la saisie du montant">OK</button>
+            </div>
             <label class="paid-option"><input id="isPaidCheckbox" type="checkbox">Colis déjà payé (0 F)</label>
           </div>
         </div>
@@ -364,6 +424,10 @@
     <div class="recap-row"><span><span id="localColisCount">0</span> COLIS</span><strong id="localTotal">0 F</strong></div>
     <div id="progressStatusContainer" class="recap-row hidden"><span id="progressText">Envoi…</span><span id="progressCount">0/0</span></div>
     <div id="progressContainer" class="progress-container"><div id="progressBar" class="progress-bar"></div></div>
+    <div id="dispatchValidationError" class="dispatch-validation-error hidden" role="alert">
+      <strong id="dispatchErrorSummary"></strong>
+      <details><summary>Détails</summary><div id="dispatchErrorDetail"></div></details>
+    </div>
     <button id="validateAllBtn" class="btn btn-primary" type="button" disabled>VALIDER LA TOURNÉE <span aria-hidden="true">→</span></button>
   </div>
 
@@ -385,7 +449,7 @@
     <div id="parcelViewerNote" class="parcel-viewer-note"></div>
   </div>
 
-  <script type="module" src="js/dispatch.js?v=11"></script>
+  <script type="module" src="js/dispatch.js?v=12"></script>
   <script type="module" src="js/navigation.js?v=2"></script>
 </body>
 </html>
