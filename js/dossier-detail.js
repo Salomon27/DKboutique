@@ -1,179 +1,389 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
-import { formatFcfa, formatDate, getQueryParam, signedPhotoUrl, createEmptyState } from './page-utils.js';
+import { formatFcfa, formatDate, getQueryParam, signedPhotoUrl, createEmptyState, createBadge } from './page-utils.js';
 
 const sortieId = getQueryParam('id');
+const el = id => document.getElementById(id);
 
-const headerMeta = document.getElementById('headerMeta');
-const statLoad = document.getElementById('statLoad');
-const statReturns = document.getElementById('statReturns');
-const statFees = document.getElementById('statFees');
-const statNet = document.getElementById('statNet');
-const livreurName = document.getElementById('livreurName');
-const tourMeta = document.getElementById('tourMeta');
-const statusBadge = document.getElementById('statusBadge');
-const countInitial = document.getElementById('countInitial');
-const countAdd = document.getElementById('countAdd');
-const countDelivered = document.getElementById('countDelivered');
-const countReturns = document.getElementById('countReturns');
-const timeline = document.getElementById('timeline');
-const parcelGrid = document.getElementById('parcelGrid');
+const headerMeta = el('headerMeta');
+const dossierId = el('dossierId');
+const livreurName = el('livreurName');
+const tourMeta = el('tourMeta');
+const statusBadge = el('statusBadge');
+const backLink = el('backLink');
+const exportDossierBtn = el('exportDossierBtn');
+const timeline = el('timeline');
+const parcelGrid = el('parcelGrid');
+const parcelTitle = el('parcelTitle');
+const auditPanel = el('auditPanel');
+const auditTitle = el('auditTitle');
+const auditDetails = el('auditDetails');
+
+const photoViewer = el('photoViewer');
+const closeViewerBtn = el('closeViewerBtn');
+const viewerImage = el('viewerImage');
 
 let resume = null;
 let colis = [];
 let ops = [];
+let isClosed = false;
 
-function addTimeline(time, title, detail, amount = null) {
-  const item = document.createElement('div');
-  item.className = 'timeline-entry';
-
-  const when = document.createElement('div');
-  when.className = 'text-sm text-muted';
-  when.textContent = formatDate(time, true);
-
-  const titleEl = document.createElement('div');
-  titleEl.className = 'font-bold';
-  titleEl.textContent = title;
-
-  const detailEl = document.createElement('div');
-  detailEl.className = 'text-sm text-muted';
-  detailEl.textContent = detail || '';
-
-  item.append(when, titleEl, detailEl);
-
-  if (amount !== null) {
-    const amountEl = document.createElement('div');
-    amountEl.className = 'font-bold';
-    amountEl.textContent = formatFcfa(amount);
-    item.appendChild(amountEl);
-  }
-
-  timeline.appendChild(item);
+function money(value) {
+  return Number(value ?? 0);
 }
 
-async function renderParcels() {
-  parcelGrid.replaceChildren();
+function getOps(type) {
+  return ops.filter(op => op.type === type);
+}
 
-  if (!colis.length) {
-    parcelGrid.appendChild(createEmptyState('Aucun colis.'));
-    return;
+function sumOps(type) {
+  return getOps(type).reduce((sum, op) => sum + money(op.montant), 0);
+}
+
+function csvCell(value) {
+  let str = String(value ?? '');
+  if (/^\s*[=+@-]/.test(str)) str = "'" + str;
+  return '"' + str.replace(/"/g, '""') + '"';
+}
+
+function downloadCsv() {
+  if (!resume) return;
+
+  const rows = [
+    ['DK BOUTIQUE - DOSSIER TOURNÉE', sortieId],
+    ['Livreur', resume.livreur_nom],
+    ['Zone', resume.zone_nom],
+    ['Date départ', formatDate(resume.created_at, true)],
+    ['Date clôture', isClosed ? formatDate(resume.closed_at, true) : 'En cours'],
+    ['Statut', isClosed ? 'Clôturée' : 'En cours'],
+    ['Chargement initial (F CFA)', money(resume.montant_initial)],
+    ['Ajouts (F CFA)', money(resume.montant_ajouts)],
+    ['Retours confirmés (F CFA)', sumOps('retour')],
+    ['Livraisons déduites (F CFA)', sumOps('deduction_livraison')],
+    ['Autres frais (F CFA)', sumOps('frais_divers')],
+    ['Net à encaisser (F CFA)', isClosed ? money(resume.montant_final) : money(resume.net_a_encaisser)],
+    [],
+    ['COLIS'],
+    ['Identifiant', 'Source', 'Montant (F CFA)', 'Statut livreur', 'Retour confirmé', 'Déduction livraison (F CFA)', 'Commentaire', 'Photo - chemin privé'],
+    ...colis.map(c => [
+      c.id, c.source, money(c.valeur), c.statut_livreur,
+      getOps('retour').some(op => op.colis_id === c.id) ? 'Oui' : 'Non',
+      getOps('deduction_livraison').filter(op => op.colis_id === c.id).reduce((sum, op) => sum + money(op.montant), 0),
+      c.commentaire || '', c.photo_path || ''
+    ]),
+    [],
+    ['OPÉRATIONS ENREGISTRÉES'],
+    ['Identifiant', 'Date', 'Type', 'Colis lié', 'Montant (F CFA)', 'Motif'],
+    ...ops.map(op => [op.id, formatDate(op.created_at, true), op.type, op.colis_id || '', money(op.montant), op.commentaire || ''])
+  ];
+
+  const csv = '\uFEFF' + rows
+    .map(row => row.map(csvCell).join(';'))
+    .join('\r\n');
+
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `dk-boutique-dossier-${sortieId.slice(0, 8)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function renderSummary() {
+  isClosed = resume.statut === 'cloturee';
+  dossierId.textContent = `TOURNÉE · ${resume.id.slice(0, 8).toUpperCase()}`;
+  livreurName.textContent = resume.livreur_nom || 'Livreur';
+  headerMeta.textContent = resume.zone_nom || 'Zone non définie';
+  tourMeta.textContent = `Zone : ${resume.zone_nom || 'Non définie'} • Départ : ${formatDate(resume.created_at, true)}${isClosed ? ` • Clôture : ${formatDate(resume.closed_at, true)}` : ''}`;
+  statusBadge.textContent = isClosed ? 'CLÔTURÉE' : 'EN COURS';
+  statusBadge.className = isClosed ? 'badge badge-success' : 'badge badge-primary';
+
+  el('statLoad').textContent = formatFcfa(resume.montant_chargement);
+  el('statReturns').textContent = formatFcfa(resume.montant_retours);
+  el('statFees').textContent = formatFcfa(money(resume.deduction_livraison) + money(resume.frais_divers));
+  el('statNet').textContent = isClosed && resume.montant_final !== null
+    ? formatFcfa(resume.montant_final)
+    : formatFcfa(resume.net_a_encaisser);
+
+  el('countInitial').textContent = String(resume.nb_colis_initial ?? 0);
+  el('countAdd').textContent = String(resume.nb_colis_ajoutes ?? 0);
+  el('countDelivered').textContent = String(resume.nb_livres ?? 0);
+  el('countReturns').textContent = String(resume.nb_retours_confirmes ?? 0);
+
+  el('ledgerInitial').textContent = formatFcfa(resume.montant_initial);
+  el('ledgerAdds').textContent = `+${formatFcfa(resume.montant_ajouts)}`;
+  el('ledgerReturns').textContent = `-${formatFcfa(resume.montant_retours)}`;
+  el('ledgerDelivery').textContent = `-${formatFcfa(resume.deduction_livraison)}`;
+  el('ledgerFees').textContent = `-${formatFcfa(resume.frais_divers)}`;
+  el('netLabel').textContent = isClosed ? 'Net figé à la clôture' : 'Net actuel (provisoire)';
+  el('ledgerNet').textContent = isClosed && resume.montant_final !== null
+    ? formatFcfa(resume.montant_final)
+    : formatFcfa(resume.net_a_encaisser);
+
+  parcelTitle.textContent = `Colis du dossier · ${colis.length}`;
+  exportDossierBtn.disabled = false;
+}
+
+function renderAudit() {
+  const issues = [];
+  const parcelIds = new Set(colis.map(parcel => parcel.id));
+  const confirmedReturns = getOps('retour');
+  const deductions = getOps('deduction_livraison');
+  const fees = getOps('frais_divers');
+  const closedOps = getOps('cloture');
+
+  const gross = colis.reduce((sum, parcel) => sum + money(parcel.valeur), 0);
+  const returns = sumOps('retour');
+  const delivery = sumOps('deduction_livraison');
+  const expenses = sumOps('frais_divers');
+  const rawNet = gross - returns - delivery - expenses;
+  const expectedNet = Math.max(0, rawNet);
+  const displayedNet = isClosed ? money(resume.montant_final) : money(resume.net_a_encaisser);
+
+  if (!colis.length) issues.push('Le dossier ne contient aucun colis.');
+  if (rawNet < -0.01) issues.push('Le total des déductions et retours dépasse la valeur du chargement.');
+  if (Math.abs(expectedNet - displayedNet) > 0.01) {
+    issues.push(`Écart de montant : net reconstitué ${formatFcfa(expectedNet)}, net ${isClosed ? 'figé' : 'affiché'} ${formatFcfa(displayedNet)}.`);
+  }
+  if (Number(resume.nb_colis_total) !== colis.length) {
+    issues.push('Le nombre de colis diffère du récapitulatif.');
   }
 
-  for (const parcel of colis) {
-    const card = document.createElement('div');
-    card.className = 'parcel-item';
-
-    const img = document.createElement('img');
-    img.alt = 'Colis';
-    const url = await signedPhotoUrl(parcel.photo_path);
-    if (url) img.src = url;
-
-    const body = document.createElement('div');
-    body.className = 'parcel-body';
-
-    const value = document.createElement('div');
-    value.className = 'font-bold';
-    value.textContent = Number(parcel.valeur) === 0 ? 'PAYÉ' : formatFcfa(parcel.valeur);
-
-    const meta = document.createElement('div');
-    meta.className = 'text-sm text-muted';
-    const source = parcel.source === 'ajout' ? 'Ajout' : 'Initial';
-    const status = parcel.statut_livreur === 'livre' ? 'Livré' : parcel.statut_livreur === 'retourne' ? 'Retour signalé' : 'En attente';
-    meta.textContent = `${source} • ${status}`;
-
-    body.append(value, meta);
-
-    if (parcel.commentaire) {
-      const note = document.createElement('div');
-      note.className = 'text-sm';
-      note.style.marginTop = '.35rem';
-      note.textContent = parcel.commentaire;
-      body.appendChild(note);
+  if (isClosed) {
+    if (resume.montant_final === null) issues.push('Montant final absent du dossier clôturé.');
+    if (Number(resume.nb_colis_final) !== colis.length) issues.push('Le nombre figé à la clôture diffère des colis enregistrés.');
+    if (!resume.closed_at) issues.push('Date de clôture absente.');
+    if (closedOps.length !== 1) issues.push('L’opération de clôture est absente ou présente plusieurs fois.');
+    if (closedOps.length === 1 && Math.abs(money(closedOps[0].montant) - money(resume.montant_final)) > 0.01) {
+      issues.push('Le montant enregistré dans l’opération de clôture diffère du montant final.');
     }
+    const waiting = colis.filter(c => c.statut_livreur === 'en_attente').length;
+    if (waiting) issues.push(`${waiting} colis sont encore marqués « en attente » dans un dossier clôturé.`);
+  }
 
-    card.append(img, body);
-    parcelGrid.appendChild(card);
+  const uniqueOperations = new Set();
+  [...confirmedReturns, ...deductions].forEach(op => {
+    const key = `${op.type}:${op.colis_id}`;
+    if (!op.colis_id || !parcelIds.has(op.colis_id)) {
+      issues.push(`Opération ${op.type} liée à un colis absent du dossier.`);
+    }
+    if (uniqueOperations.has(key)) issues.push(`Déduction ou retour enregistré plusieurs fois pour le même colis.`);
+    uniqueOperations.add(key);
+  });
+
+  deductions.forEach(op => {
+    const target = colis.find(c => c.id === op.colis_id);
+    if (target && money(target.valeur) !== 0) {
+      issues.push('Une déduction livraison concerne un colis non payé à l’avance.');
+    }
+  });
+
+  if (fees.some(op => money(op.montant) <= 0)) {
+    issues.push('Un montant de frais est nul ou négatif.');
+  }
+
+  auditPanel.classList.toggle('ok', issues.length === 0);
+  auditTitle.textContent = issues.length
+    ? `Contrôle de cohérence · ${issues.length} point(s) à vérifier`
+    : 'Contrôle de cohérence · aucun écart détecté';
+  auditDetails.replaceChildren();
+
+  if (!issues.length) {
+    const p = document.createElement('p');
+    p.textContent = isClosed
+      ? 'Les montants et le nombre de colis présents correspondent au récapitulatif figé à la clôture.'
+      : 'Le net actuel correspond aux colis et aux opérations enregistrées.';
+    auditDetails.appendChild(p);
+  } else {
+    issues.forEach(issue => {
+      const p = document.createElement('p');
+      p.textContent = '• ' + issue;
+      auditDetails.appendChild(p);
+    });
   }
 }
 
 function renderTimeline() {
   timeline.replaceChildren();
 
-  const events = [];
-  events.push({
+  const events = [{
     time: resume.created_at,
-    title: 'Départ de la tournée',
-    detail: `${resume.nb_colis_initial} colis initiaux`,
-    amount: Number(resume.montant_initial || 0)
-  });
+    label: 'Départ de tournée',
+    detail: `${resume.nb_colis_initial ?? 0} colis initiaux`,
+    amount: money(resume.montant_initial)
+  }];
 
-  colis.filter(c => c.source === 'ajout').forEach(c => {
+  colis.filter(parcel => parcel.source === 'ajout').forEach(parcel => {
     events.push({
-      time: c.created_at,
-      title: 'Colis supplémentaire',
-      detail: c.commentaire || 'Ajout à la tournée',
-      amount: Number(c.valeur || 0)
+      time: parcel.created_at,
+      label: 'Colis supplémentaire',
+      detail: parcel.commentaire || 'Ajout à la tournée',
+      amount: money(parcel.valeur)
     });
   });
 
   ops.forEach(op => {
-    if (op.type === 'retour') {
-      events.push({ time: op.created_at, title: 'Retour confirmé', detail: op.commentaire || '', amount: -Number(op.montant || 0) });
-    } else if (op.type === 'deduction_livraison') {
-      events.push({ time: op.created_at, title: 'Livraison déduite', detail: op.commentaire || '', amount: -Number(op.montant || 0) });
-    } else if (op.type === 'frais_divers') {
-      events.push({ time: op.created_at, title: 'Frais divers', detail: op.commentaire || '', amount: -Number(op.montant || 0) });
-    } else if (op.type === 'cloture') {
-      events.push({ time: op.created_at, title: 'Tournée clôturée', detail: 'Encaissement validé', amount: Number(op.montant || 0) });
+    let label = null;
+    let amount = -money(op.montant);
+    if (op.type === 'retour') label = 'Retour confirmé';
+    else if (op.type === 'deduction_livraison') label = 'Livraison déduite';
+    else if (op.type === 'frais_divers') label = 'Frais divers';
+    else if (op.type === 'cloture') {
+      label = 'Tournée clôturée';
+      amount = money(op.montant);
     }
+    if (label) events.push({ time: op.created_at, label, detail: op.commentaire || '', amount });
   });
 
   events.sort((a, b) => new Date(a.time) - new Date(b.time));
-  events.forEach(ev => addTimeline(ev.time, ev.title, ev.detail, ev.amount));
+
+  events.forEach(event => {
+    const row = document.createElement('div');
+    row.className = 'dossier-event';
+
+    const top = document.createElement('div');
+    top.className = 'event-top';
+
+    const label = document.createElement('span');
+    label.textContent = event.label;
+
+    const when = document.createElement('span');
+    when.className = 'event-time';
+    when.textContent = formatDate(event.time, true);
+
+    top.append(label, when);
+
+    const detail = document.createElement('div');
+    detail.className = 'event-detail';
+    detail.textContent = event.detail;
+
+    const amount = document.createElement('div');
+    amount.className = 'event-amount';
+    amount.textContent = `${event.amount > 0 && event.label !== 'Départ de tournée' ? '+' : ''}${formatFcfa(event.amount)}`;
+
+    row.append(top, detail, amount);
+    timeline.appendChild(row);
+  });
 }
 
-function renderSummary() {
-  headerMeta.textContent = `${resume.livreur_nom} • ${resume.zone_nom}`;
-  livreurName.textContent = resume.livreur_nom;
-  tourMeta.textContent = `${resume.zone_nom} • Départ ${formatDate(resume.created_at, true)}`;
-
-  statusBadge.textContent = resume.statut === 'cloturee' ? 'CLÔTURÉE' : 'EN COURS';
-  statusBadge.className = `badge ${resume.statut === 'cloturee' ? 'badge-success' : 'badge-primary'}`;
-
-  statLoad.textContent = formatFcfa(resume.montant_chargement);
-  statReturns.textContent = formatFcfa(resume.montant_retours);
-  statFees.textContent = formatFcfa(Number(resume.deduction_livraison || 0) + Number(resume.frais_divers || 0));
-  statNet.textContent = formatFcfa(resume.statut === 'cloturee' ? resume.montant_final : resume.net_a_encaisser);
-
-  countInitial.textContent = String(resume.nb_colis_initial || 0);
-  countAdd.textContent = String(resume.nb_colis_ajoutes || 0);
-  countDelivered.textContent = String(resume.nb_livres || 0);
-  countReturns.textContent = String(resume.nb_retours_confirmes || 0);
+function openPhoto(url) {
+  viewerImage.src = url;
+  photoViewer.classList.add('open');
+  closeViewerBtn.focus();
 }
 
-async function load() {
+function closePhoto() {
+  photoViewer.classList.remove('open');
+  viewerImage.removeAttribute('src');
+}
+
+async function renderParcels() {
+  parcelGrid.replaceChildren();
+
+  if (!colis.length) {
+    parcelGrid.appendChild(createEmptyState('Aucun colis enregistré dans ce dossier.'));
+    return;
+  }
+
+  const returns = new Set(getOps('retour').map(op => op.colis_id));
+  const delivery = new Set(getOps('deduction_livraison').map(op => op.colis_id));
+  const photoJobs = [];
+
+  colis.forEach((parcel, index) => {
+    const card = document.createElement('article');
+    card.className = 'parcel-item';
+
+    const imageContainer = document.createElement('div');
+    const img = document.createElement('img');
+    img.className = 'parcel-photo';
+    img.alt = `Photo du colis ${index + 1}`;
+    img.loading = 'lazy';
+
+    if (parcel.photo_path) {
+      imageContainer.appendChild(img);
+      photoJobs.push({ img, path: parcel.photo_path, container: imageContainer });
+    } else {
+      const missing = document.createElement('div');
+      missing.className = 'parcel-photo-empty';
+      missing.textContent = 'Photo indisponible';
+      imageContainer.appendChild(missing);
+    }
+
+    const body = document.createElement('div');
+    body.className = 'parcel-body';
+
+    const value = document.createElement('strong');
+    value.textContent = Number(parcel.valeur) === 0 ? 'PAYÉ · 0 F' : formatFcfa(parcel.valeur);
+
+    const meta = document.createElement('div');
+    meta.className = 'parcel-meta';
+    const status = parcel.statut_livreur === 'livre' ? 'Livré'
+      : parcel.statut_livreur === 'retourne' ? 'Retour signalé'
+        : 'En attente';
+    meta.textContent = `Colis n° ${index + 1} · ${parcel.source === 'ajout' ? 'Ajout' : 'Initial'} · ${status}`;
+
+    const flags = document.createElement('div');
+    flags.className = 'parcel-flags';
+    if (returns.has(parcel.id)) flags.appendChild(createBadge('RETOUR CONFIRMÉ', 'danger'));
+    if (delivery.has(parcel.id)) flags.appendChild(createBadge('LIVRAISON DÉDUITE', 'warning'));
+
+    body.append(value, meta, flags);
+
+    if (parcel.commentaire) {
+      const note = document.createElement('div');
+      note.className = 'parcel-note';
+      note.textContent = parcel.commentaire;
+      body.appendChild(note);
+    }
+
+    card.append(imageContainer, body);
+    parcelGrid.appendChild(card);
+  });
+
+  // Limit simultaneous signed URL calls; card order stays stable on screen.
+  for (let index = 0; index < photoJobs.length; index += 6) {
+    await Promise.all(photoJobs.slice(index, index + 6).map(async job => {
+      const url = await signedPhotoUrl(job.path);
+      if (!url) {
+        job.img.remove();
+        const missing = document.createElement('div');
+        missing.className = 'parcel-photo-empty';
+        missing.textContent = 'Photo indisponible';
+        job.container.appendChild(missing);
+        return;
+      }
+      job.img.src = url;
+      job.img.addEventListener('click', () => openPhoto(url));
+    }));
+  }
+}
+
+async function loadDossier() {
   const [resumeRes, colisRes, opsRes] = await Promise.all([
     supabase.from('v_sorties_resume').select('*').eq('id', sortieId).maybeSingle(),
-    supabase.from('colis').select('*').eq('sortie_id', sortieId).order('created_at'),
-    supabase.from('sortie_operations').select('*').eq('sortie_id', sortieId).order('created_at')
+    supabase.from('colis').select('id, source, valeur, statut_livreur, commentaire, photo_path, created_at').eq('sortie_id', sortieId).order('created_at'),
+    supabase.from('sortie_operations').select('id, sortie_id, colis_id, type, montant, commentaire, created_at').eq('sortie_id', sortieId).order('created_at')
   ]);
 
   if (resumeRes.error) throw resumeRes.error;
-  if (!resumeRes.data) throw new Error('Tournée introuvable.');
   if (colisRes.error) throw colisRes.error;
   if (opsRes.error) throw opsRes.error;
+  if (!resumeRes.data) throw new Error('Dossier introuvable ou non autorisé.');
 
   resume = resumeRes.data;
   colis = colisRes.data || [];
   ops = opsRes.data || [];
 
   renderSummary();
+  renderAudit();
   renderTimeline();
   await renderParcels();
 }
 
 async function init() {
-  if (!sortieId) {
+  if (!sortieId || !/^[0-9a-f-]{36}$/i.test(sortieId)) {
     window.location.replace('rapports.html');
     return;
   }
@@ -182,10 +392,40 @@ async function init() {
   if (!user) return;
 
   try {
-    await load();
-  } catch (err) {
-    console.error(err);
-    timeline.replaceChildren(createEmptyState(err.message || 'Impossible de charger ce dossier.'));
+    const role = await auth.getCurrentRole();
+    if (role === 'gerant') {
+      const profileId = await auth.getCurrentProfileId();
+      if (!profileId) throw new Error('Profil Gérant indisponible.');
+      // Match the archive list's dossier scope: only this manager's tours.
+      const { data, error } = await supabase
+        .from('sorties')
+        .select('id')
+        .eq('id', sortieId)
+        .eq('gerant_id', profileId)
+        .maybeSingle();
+      if (error || !data) throw new Error('Dossier introuvable ou non autorisé.');
+    }
+
+    backLink.href = 'rapports.html';
+    exportDossierBtn.addEventListener('click', downloadCsv);
+    closeViewerBtn.addEventListener('click', closePhoto);
+    photoViewer.addEventListener('click', event => {
+      if (event.target === photoViewer) closePhoto();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && photoViewer.classList.contains('open')) closePhoto();
+    });
+
+    await loadDossier();
+  } catch (error) {
+    console.error('Dossier:', error);
+    auditDetails.replaceChildren();
+    const p = document.createElement('p');
+    p.textContent = 'Impossible de charger le dossier ou accès non autorisé.';
+    auditDetails.appendChild(p);
+    timeline.replaceChildren(createEmptyState('Dossier indisponible.'));
+    parcelGrid.replaceChildren();
+    exportDossierBtn.disabled = true;
   }
 }
 
