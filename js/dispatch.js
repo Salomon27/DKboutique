@@ -141,7 +141,7 @@ function confirmDiscardPending() {
 }
 
 function refreshScreen() {
-    if (!confirmDiscardPending()) return;
+    if (isValidating || !confirmDiscardPending()) return;
     window.location.reload();
 }
 
@@ -194,6 +194,12 @@ async function init() {
     });
     addColisBtn.addEventListener('click', addLocalColis);
     validateAllBtn.addEventListener('click', validateAllColis);
+    window.addEventListener('beforeunload', event => {
+      if (isValidating || pendingColis.length || photoInput.files?.length) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    });
     previewZoomBtn.addEventListener('click', () => {
         openPhoto(previewObjectUrl, 'PHOTO EN COURS', noteInput.value.trim(), previewZoomBtn);
     });
@@ -213,14 +219,14 @@ async function init() {
     renderPendingColis();
     updateStage();
     // Read-only refresh. Never reset a courier or any prepared parcel.
-    enableAutoSync(() => loadLivreurs(), {
+    enableAutoSync(() => loadLivreurs({ throwOnError: true }), {
       tables: ['livreurs', 'zones'], intervalMs: 30000,
       shouldRefresh: () => !selectedLivreur && !pendingColis.length && !photoInput.files?.length
         && !isValidating && document.activeElement !== livreurSelect
     });
 }
 
-async function loadLivreurs() {
+async function loadLivreurs({ throwOnError = false } = {}) {
     try {
         const { data, error } = await supabase
             .from('livreurs')
@@ -253,6 +259,7 @@ async function loadLivreurs() {
         prompt.textContent = 'Erreur de chargement — actualisez';
         livreurSelect.appendChild(prompt);
         livreurSelect.disabled = true;
+        if (throwOnError) throw err;
     }
 }
 
