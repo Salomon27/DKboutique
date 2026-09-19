@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Bilan journée - DK Boutique</title>
+  <meta name="theme-color" content="#F4F7FB">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1 class="header-title" style="margin:0;">BILAN JOURNÉE</h1>
+      <div class="text-sm text-muted">Synthèse des tournées clôturées</div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <div class="toolbar">
+      <input id="dayInput" class="form-control" type="date">
+      <div></div>
+      <button id="todayBtn" class="btn btn-outline">Aujourd'hui</button>
+    </div>
+
+    <section class="stats-grid mb-4">
+      <div class="stat-card"><div class="stat-label">Chargement</div><div class="stat-value" id="totalLoad">0 F</div></div>
+      <div class="stat-card"><div class="stat-label">Retours</div><div class="stat-value" id="totalReturns">0 F</div></div>
+      <div class="stat-card"><div class="stat-label">Frais + livraisons</div><div class="stat-value" id="totalFees">0 F</div></div>
+      <div class="stat-card"><div class="stat-label">Net encaissé</div><div class="stat-value" id="totalNet">0 F</div></div>
+    </section>
+
+    <section class="card mb-4">
+      <div class="stats-grid">
+        <div><div class="stat-label">Tournées</div><div class="stat-value" id="tourCount">0</div></div>
+        <div><div class="stat-label">Colis</div><div class="stat-value" id="parcelCount">0</div></div>
+        <div><div class="stat-label">Livrés</div><div class="stat-value" id="deliveredCount">0</div></div>
+        <div><div class="stat-label">Retours confirmés</div><div class="stat-value" id="returnCount">0</div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Détail par livreur</h2>
+      <div id="breakdownList"></div>
+    </section>
+  </main>
+
+  <script type="module" src="js/bilan-journee.js?v=1"></script>
+  <script type="module" src="js/navigation.js?v=1"></script>
+</body>
+</html>
