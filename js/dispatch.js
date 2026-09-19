@@ -45,6 +45,40 @@ let activeTourneeId = null;
 let previewObjectUrl = null;
 let selectedLivreurRequest = 0;
 let isValidating = false;
+let formReady = false;
+const STAGES = ['stage-select', 'stage-capture', 'stage-preview', 'stage-queue'];
+
+function updateStage() {
+    const hasPhoto = Boolean(photoInput.files?.length);
+    const stage = !selectedLivreur ? 'stage-select'
+        : hasPhoto ? 'stage-preview'
+        : pendingColis.length ? 'stage-queue'
+        : 'stage-capture';
+
+    const body = document.body;
+    if (!body.classList.contains(stage)) {
+        body.classList.remove(...STAGES);
+        body.classList.add(stage);
+    }
+
+    colisFormContainer.setAttribute('aria-busy', String(Boolean(selectedLivreur && !formReady)));
+    photoInput.disabled = !formReady || isValidating;
+    addColisBtn.disabled = !formReady || !hasPhoto || isValidating;
+}
+
+function resetPhoto() {
+    photoInput.value = '';
+    if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+    previewObjectUrl = null;
+    cameraPreview.removeAttribute('src');
+    cameraPreview.style.display = 'none';
+    photoPlaceholder.style.display = 'flex';
+    montantInput.value = '';
+    noteInput.value = '';
+    isPaidCheckbox.checked = false;
+    montantInput.disabled = false;
+    updateStage();
+}
 
 function closeMenu() {
     drawerBackdrop.classList.remove('open');
@@ -63,8 +97,10 @@ function refreshScreen() {
 }
 
 function setFormAvailable(available) {
-    colisFormContainer.style.opacity = available ? '1' : '.5';
-    colisFormContainer.style.pointerEvents = available ? 'auto' : 'none';
+    formReady = Boolean(available);
+    colisFormContainer.style.opacity = formReady ? '1' : '.63';
+    colisFormContainer.style.pointerEvents = formReady ? 'auto' : 'none';
+    updateStage();
 }
 
 async function init() {
@@ -90,6 +126,7 @@ async function init() {
         await auth.logout();
     });
 
+    livreurSelect.disabled = true;
     livreurSelect.addEventListener('change', handleLivreurChange);
     photoInput.addEventListener('change', handlePhotoChange);
     isPaidCheckbox.addEventListener('change', handlePaidToggle);
@@ -97,6 +134,7 @@ async function init() {
     validateAllBtn.addEventListener('click', validateAllColis);
     await loadLivreurs();
     renderPendingColis();
+    updateStage();
 }
 
 async function loadLivreurs() {
@@ -110,49 +148,69 @@ async function loadLivreurs() {
             .eq('actif', true);
 
         if (error) throw error;
-        livreurs = data;
+        livreurs = data || [];
+        livreurSelect.replaceChildren();
+        const prompt = document.createElement('option');
+        prompt.value = '';
+        prompt.textContent = livreurs.length ? 'Sélectionner un livreur…' : 'Aucun livreur disponible';
+        livreurSelect.appendChild(prompt);
 
-        data.forEach(l => {
+        livreurs.forEach(l => {
             const opt = document.createElement('option');
             opt.value = l.id;
             opt.textContent = l.nom;
             livreurSelect.appendChild(opt);
         });
+        livreurSelect.disabled = livreurs.length === 0;
     } catch (err) {
         console.error('Erreur chargement livreurs:', err);
+        livreurSelect.replaceChildren();
+        const prompt = document.createElement('option');
+        prompt.value = '';
+        prompt.textContent = 'Erreur de chargement — actualisez';
+        livreurSelect.appendChild(prompt);
+        livreurSelect.disabled = true;
     }
 }
 
-async function handleLivreurChange(e) {
-    const lId = e.target.value;
-    if (pendingColis.length && selectedLivreur && lId !== selectedLivreur.id) {
-        if (!confirmDiscardPending()) {
-            livreurSelect.value = selectedLivreur.id;
-            return;
-        }
+async function handleLivreurChange(event) {
+    const nextId = event.target.value;
+    if (isValidating) {
+        livreurSelect.value = selectedLivreur?.id || '';
+        return;
+    }
+
+    const changing = nextId !== (selectedLivreur?.id || '');
+    const unsaved = pendingColis.length > 0 || Boolean(photoInput.files?.length);
+    if (changing && unsaved && !confirmDiscardPending()) {
+        livreurSelect.value = selectedLivreur?.id || '';
+        return;
+    }
+
+    if (changing) {
         pendingColis.forEach(colis => URL.revokeObjectURL(colis.previewUrl));
         pendingColis = [];
-        renderPendingColis();
+        resetPhoto();
     }
 
     const request = ++selectedLivreurRequest;
     activeTourneeId = null;
+    selectedLivreur = livreurs.find(livreur => livreur.id === nextId) || null;
     setFormAvailable(false);
     tourneeStatus.textContent = '';
-    if (!lId) {
-        selectedLivreur = null;
-        zoneDisplay.value = '';
+    zoneDisplay.textContent = selectedLivreur?.zones?.nom || (selectedLivreur ? 'Zone non définie' : 'Attribuée après sélection du livreur');
+    renderPendingColis();
+
+    if (!selectedLivreur) return;
+
+    if (!selectedLivreur.zone_id) {
+        tourneeStatus.textContent = 'Ce livreur n’a pas de zone. Attribuez-lui une zone dans Équipe.';
+        tourneeStatus.style.color = 'var(--danger)';
         return;
     }
 
-    selectedLivreur = livreurs.find(l => l.id === lId) || null;
-    if (!selectedLivreur) {
-        zoneDisplay.value = '';
-        return;
-    }
-
-    zoneDisplay.value = selectedLivreur.zones?.nom || 'Sans zone';
     tourneeStatus.textContent = 'Vérification de la tournée…';
+    tourneeStatus.style.color = 'var(--text-muted)';
     try {
         const { data, error } = await supabase
             .from('sorties')
@@ -160,27 +218,22 @@ async function handleLivreurChange(e) {
             .eq('livreur_id', selectedLivreur.id)
             .eq('statut', 'en_cours')
             .maybeSingle();
-            
+
         if (request !== selectedLivreurRequest) return;
         if (error) throw error;
 
-        if (data) {
-            activeTourneeId = data.id;
-            tourneeStatus.textContent = 'Tournée active : les prochains colis seront ajoutés à cette tournée.';
-            tourneeStatus.style.color = 'var(--warning)';
-        } else {
-            activeTourneeId = null;
-            tourneeStatus.textContent = 'Nouvelle tournée : prête à être créée.';
-            tourneeStatus.style.color = 'var(--text-muted)';
-        }
-
+        activeTourneeId = data?.id || null;
+        tourneeStatus.textContent = data
+            ? 'Tournée active : vos colis seront ajoutés à cette tournée.'
+            : 'Nouvelle tournée prête à être créée.';
+        tourneeStatus.style.color = data ? 'var(--primary)' : 'var(--text-muted)';
         setFormAvailable(true);
-
     } catch (err) {
         if (request !== selectedLivreurRequest) return;
-        console.error(err);
-        tourneeStatus.textContent = 'Erreur lors de la vérification. Sélectionnez à nouveau le livreur.';
+        console.error('Vérification tournée:', err);
+        tourneeStatus.textContent = 'Impossible de vérifier la tournée. Choisissez à nouveau le livreur.';
         tourneeStatus.style.color = 'var(--danger)';
+        setFormAvailable(false);
     }
 }
 
@@ -204,17 +257,21 @@ async function handlePhotoChange(event) {
     if (!file) {
         cameraPreview.removeAttribute('src');
         cameraPreview.style.display = 'none';
-        photoPlaceholder.style.display = 'grid';
+        photoPlaceholder.style.display = 'flex';
+        updateStage();
         return;
     }
     previewObjectUrl = URL.createObjectURL(file);
     cameraPreview.src = previewObjectUrl;
     cameraPreview.style.display = 'block';
     photoPlaceholder.style.display = 'none';
+    updateStage();
+    // Après la photo, afficher montant et bouton AJOUTER en mode compact.
+    if (!isPaidCheckbox.checked) montantInput.focus({ preventScroll: true });
 }
 
 async function addLocalColis() {
-    if (!selectedLivreur || isValidating) return;
+    if (!selectedLivreur || !formReady || isValidating || addColisBtn.disabled) return;
     const rawFile = photoInput.files[0];
     const montant = montantInput.value.trim();
     const note = noteInput.value.trim();
@@ -253,24 +310,15 @@ async function addLocalColis() {
         pendingColis.push(colis);
         renderPendingColis(true); // true = animate last added
         
-        // Reset Form
-        photoInput.value = '';
-        if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
-        previewObjectUrl = null;
-        cameraPreview.removeAttribute('src');
-        cameraPreview.style.display = 'none';
-        photoPlaceholder.style.display = 'grid';
-        montantInput.value = '';
-        noteInput.value = '';
-        isPaidCheckbox.checked = false;
-        montantInput.disabled = false;
+        // Garder le formulaire compact après le premier colis pour laisser la place à la liste.
+        resetPhoto();
         
     } catch (err) {
         console.error(err);
         alert("Erreur lors du traitement de la photo.");
     } finally {
-        addColisBtn.disabled = false;
         addColisBtn.textContent = "AJOUTER +";
+        updateStage();
     }
 }
 
@@ -329,15 +377,16 @@ function renderPendingColis(animateLast = false) {
     localColisCount.textContent = String(pendingColis.length);
     localTotal.textContent = total.toLocaleString('fr-FR') + ' F';
     validateAllBtn.disabled = !hasCart || isValidating;
+    updateStage();
 }
 
 async function validateAllColis() {
     if (!selectedLivreur || pendingColis.length === 0 || isValidating) return;
     isValidating = true;
     livreurSelect.disabled = true;
-    addColisBtn.disabled = true;
+    updateStage();
     validateAllBtn.disabled = true;
-    validateAllBtn.textContent = "VALIDATION EN COURS...";
+    validateAllBtn.textContent = "ENREGISTREMENT EN COURS…";
     
     progressStatusContainer.classList.remove('hidden');
     progressContainer.style.display = 'block';
@@ -451,8 +500,8 @@ async function validateAllColis() {
             renderPendingColis();
             progressStatusContainer.classList.add('hidden');
             progressContainer.style.display = 'none';
-            validateAllBtn.disabled = false;
-            validateAllBtn.textContent = "VALIDER TOUT";
+            validateAllBtn.disabled = true;
+            validateAllBtn.textContent = "VALIDER LA TOURNÉE";
             
             // Mettre à jour l'état de la tournée affichée
             handleLivreurChange({ target: { value: selectedLivreur.id } });
@@ -474,7 +523,7 @@ async function validateAllColis() {
 
         // Reset bouton mais garde uniquement les colis non confirmés
         validateAllBtn.disabled = pendingColis.length === 0;
-        validateAllBtn.textContent = "RÉESSAYER";
+        validateAllBtn.textContent = "RÉESSAYER LA VALIDATION";
         progressText.textContent = "Erreur...";
         progressText.style.color = "var(--danger)";
     }
