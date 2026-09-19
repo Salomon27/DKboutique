@@ -84,7 +84,10 @@ returns trigger language plpgsql security definer set search_path = ''
 as $$
 declare v_active boolean;
 begin
-  select (l.actif and s.suspendue_at is null and s.statut = 'en_cours')
+  select (l.actif and s.suspendue_at is null
+    and (s.statut = 'en_cours'
+      or (tg_table_name = 'sortie_operations'
+        and new.type = 'cloture' and s.statut = 'cloturee')))
   into v_active
   from public.sorties s
   join public.livreurs l on l.id = s.livreur_id
@@ -106,9 +109,17 @@ for each row execute function public.dk_guard_inactive_tour_write();
 
 create or replace function public.dk_guard_suspended_sortie()
 returns trigger language plpgsql security definer set search_path = ''
-as $$
+as $
 declare v_active boolean;
 begin
+  if tg_op = 'INSERT' then
+    select actif into v_active from public.livreurs
+    where id = new.livreur_id for share;
+    if v_active is distinct from true or new.suspendue_at is not null then
+      raise exception 'Impossible de creer une tournee pour un livreur desactive.';
+    end if;
+    return new;
+  end if;
   if old.suspendue_at is not null and new.suspendue_at is null then
     raise exception 'La tournee suspendue ne peut pas etre reactivee automatiquement.';
   end if;
@@ -124,7 +135,7 @@ end;
 $$;
 revoke execute on function public.dk_guard_suspended_sortie() from public, anon, authenticated;
 drop trigger if exists dk_guard_suspended_sortie on public.sorties;
-create trigger dk_guard_suspended_sortie before update on public.sorties
+create trigger dk_guard_suspended_sortie before insert or update on public.sorties
 for each row execute function public.dk_guard_suspended_sortie();
 
 -- Le responsable peut gerer les coordonnees, mais une desactivation
