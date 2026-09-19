@@ -1,219 +1,205 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dispatch - DK Boutique</title>
-    <meta name="theme-color" content="#f8fafc">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
-    <!-- Intégration GSAP -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <style>
-        body {
-            /* Support mobile PWA: 100dvh permet d'éviter que le clavier ne détruise la mise en page */
-            height: 100dvh;
-            overflow: hidden; /* Empêcher le scroll sur le body pour avoir un container interne scrollable */
-            background-color: var(--bg-main);
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F4F7FB">
+  <title>Dispatch — DK Boutique</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Même répartition des blocs que le Dispatch mobile ALC.
+       Couleurs, typographie et finition : identité DK Boutique. */
+    body.dispatch-page {
+      height: 100dvh;
+      min-height: 0;
+      overflow: hidden;
+      background: #F8FAFF;
+    }
+    .dispatch-header.app-header {
+      flex: 0 0 auto;
+      width: 100%;
+      max-width: none;
+      min-height: 64px;
+      margin: 0;
+      padding: 8px 12px;
+      top: 0;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      border-radius: 0;
+      box-shadow: none;
+      background: #FFF;
+      display: flex;
+      gap: 9px;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    .header-icon {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 9px;
+      background: #0F172A;
+      color: #FFF;
+      cursor: pointer;
+    }
+    .header-icon svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .dispatch-heading { font-size: 1rem; font-weight: 900; letter-spacing: -.03em; margin: 0 0 0 12px; white-space: nowrap; }
+    .dispatch-actu { color: var(--primary); background: #EFF6FF; border: 1px solid #D8E6FF; border-radius: 10px; padding: 7px 9px; font-size: .63rem; font-weight: 900; white-space: nowrap; }
+    .dispatch-exit { margin-left: auto; color: #EF4444; background: #FFF1F2; }
+    .dispatch-exit:focus-visible,.header-icon:focus-visible,.compact-add:focus-visible { outline: 3px solid #93C5FD; outline-offset: 2px; }
 
-        .scrollable-content {
-            flex: 1;
-            overflow-y: auto;
-            padding-bottom: 120px; /* Espace pour le sticky footer */
-        }
-
-        .camera-container {
-            width: 100%;
-            aspect-ratio: 4/3;
-            background-color: var(--border);
-            border-radius: var(--radius-md);
-            overflow: hidden;
-            position: relative;
-            margin-bottom: var(--space-3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #cameraPreview {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: none;
-        }
-
-        .file-input-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            opacity: 0;
-            cursor: pointer;
-        }
-
-        .placeholder-icon {
-            font-size: 3rem;
-            color: var(--text-muted);
-            pointer-events: none;
-        }
-
-        /* Checkbox Payé */
-        .checkbox-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: var(--space-2);
-            cursor: pointer;
-        }
-        
-        .checkbox-wrapper input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-            accent-color: var(--success);
-        }
-        .checkbox-wrapper span {
-            font-size: 0.9rem;
-            font-weight: 600;
-        }
-
-        /* Sticky Footer */
-        .sticky-footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: var(--bg-card);
-            border-top: 1px solid var(--border);
-            padding: var(--space-3) var(--space-4);
-            box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.1);
-            z-index: 50;
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-2);
-        }
-
-        .recap-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: bold;
-        }
-
-        /* Grid */
-        .photo-card {
-            /* Initial state for GSAP */
-            transform: scale(0.96);
-            opacity: 0;
-        }
-
-        .progress-container {
-            display: none;
-            width: 100%;
-            background-color: var(--border);
-            border-radius: 4px;
-            height: 6px;
-            margin-top: 8px;
-            overflow: hidden;
-        }
-        .progress-bar {
-            height: 100%;
-            background-color: var(--primary);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-    </style>
+    .dispatch-main {
+      width: 100%;
+      max-width: 920px;
+      min-height: 0;
+      flex: 1 1 auto;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      overflow: hidden;
+    }
+    .dispatch-form-area { flex: 0 0 auto; padding: 12px 13px 13px; background: #FFF; border-bottom: 1px solid var(--border); }
+    .dispatch-identity { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 9px; margin-bottom: 11px; }
+    .dispatch-identity .form-control {
+      min-width: 0; width: 100%; height: 46px; min-height: 46px; padding: 0 12px;
+      background: #FFF; border: 1px solid #D7E1F2; border-radius: 12px; font-size: .9rem; font-weight: 700;
+      text-overflow: ellipsis; appearance: none;
+    }
+    .dispatch-identity input[readonly] { font-weight: 600; color: var(--text-muted); cursor: default; }
+    .dispatch-identity input[readonly]:not(:placeholder-shown) { color: var(--text-main); }
+    .dispatch-form.card { border-radius: 17px; box-shadow: 0 4px 24px rgba(15,23,42,.035); padding: 18px 19px; }
+    .dispatch-capture-row { display: grid; grid-template-columns: 84px minmax(0,1fr); align-items: stretch; gap: 12px; }
+    .camera-container {
+      height: 84px; width: 84px; margin: 0; border-radius: 12px; border: 2px dashed #D7E1F2;
+      display: flex; align-items: center; justify-content: center; background: #FBFDFF; overflow: hidden; position: relative;
+    }
+    #cameraPreview { width: 100%; height: 100%; object-fit: cover; display: none; }
+    #photoPlaceholder { color: #8394AF; display: grid; place-items: center; pointer-events: none; }
+    #photoPlaceholder svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .file-input-overlay { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+    .amount-box { height: 84px; min-width: 0; border: 1px solid #D7E1F2; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; padding: 6px 12px 4px; background: #FFF; }
+    .amount-box input { width: 100%; min-width: 0; height: 44px; padding: 0; border: 0; outline: none; background: transparent; color: var(--text-main); font-size: 1.3rem; font-weight: 800; }
+    .amount-box input::placeholder { color: #94A3B8; opacity: 1; }
+    .amount-box:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
+    .paid-option { display: flex; align-items: center; gap: 5px; font-size: .65rem; font-weight: 800; color: #15803D; cursor: pointer; white-space: nowrap; }
+    .paid-option input { width: 14px; height: 14px; flex: 0 0 14px; accent-color: #16A34A; }
+    .dispatch-note-row { display: grid; grid-template-columns: minmax(0,1fr) 110px; gap: 8px; margin-top: 14px; }
+    .dispatch-note-row .form-control { width: 100%; min-width: 0; height: 42px; min-height: 42px; padding: 0 11px; border: 1px solid #D7E1F2; border-radius: 10px; background: #FFF; font-size: .75rem; font-weight: 600; }
+    .compact-add.btn { width: 110px; height: 42px; min-height: 42px; padding: 0 6px; border-radius: 10px; background: #0F172A; color: #FFF; font-size: .72rem; font-weight: 900; box-shadow: none; }
+    .compact-add.btn:disabled { cursor: not-allowed; }
+    .dispatch-status { font-size: .69rem; font-weight: 700; padding: 5px 3px 0; min-height: 0; }
+    .dispatch-status:empty { display: none; }
+    .dispatch-list-panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 13px 94px; }
+    .dispatch-list-panel.has-cart { padding-bottom: 183px; }
+    .dispatch-empty { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px; color: #94A3B8; font-size: .78rem; font-weight: 800; text-align: center; }
+    .dispatch-empty svg { width: 27px; height: 27px; fill: none; stroke: #B7C5D8; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .dispatch-list-title { display: none; margin: 0 0 10px; font-size: .78rem; color: var(--text-muted); font-weight: 900; }
+    .dispatch-photo-grid { grid-template-columns: repeat(auto-fill,minmax(95px,1fr)); gap: 9px; }
+    .dispatch-photo-grid .photo-card { border-radius: 12px; }
+    .dispatch-photo-grid .photo-overlay { padding: 6px; gap: 4px; align-items: end; font-size: .67rem; }
+    .dispatch-photo-grid .photo-overlay button { min-width: 24px; padding: 4px 5px!important; font-size: .7rem!important; }
+    .dispatch-footer.sticky-footer {
+      display: none; bottom: 82px!important; left: 50%!important; width: min(calc(100% - 24px), 610px)!important;
+      transform: translateX(-50%); z-index: 90; border: 1px solid #D7E1F2!important;
+      border-radius: 15px!important; background: #FFF; padding: 10px 13px; box-shadow: 0 8px 34px rgba(15,23,42,.11)!important;
+      gap: 7px;
+    }
+    .dispatch-footer .btn { min-height: 42px; font-size: .87rem; padding: 9px 12px; }
+    .dispatch-footer .recap-row { font-size: .78rem; }
+    .progress-container { display: none; height: 5px; background: var(--border); border-radius: 999px; overflow: hidden; }
+    .progress-bar { height: 100%; width: 0; background: var(--primary); transition: width .25s ease; }
+    .dispatch-page .bottom-nav { width: 100%; max-width: 920px; bottom: 0; border-radius: 0; min-height: 66px; }
+    .dispatch-page .nav-item { min-width: 0; }
+    .dispatch-drawer-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.42); z-index: 180; display: none; }
+    .dispatch-drawer-backdrop.open { display: block; }
+    .dispatch-drawer { width: min(300px,83vw); height: 100%; padding: 22px 17px; background: #FFF; box-shadow: 12px 0 36px rgba(15,23,42,.14); display: flex; flex-direction: column; gap: 7px; }
+    .dispatch-drawer h2 { font-size: 1.12rem; font-weight: 900; margin: 0 0 13px; }
+    .dispatch-drawer a { color: var(--text-main); font-size: .88rem; font-weight: 800; padding: 12px; border: 1px solid var(--border); border-radius: 11px; text-decoration: none; }
+    .dispatch-drawer a[aria-current="page"] { background: var(--primary-soft); color: var(--primary); }
+    .dispatch-drawer button { margin-bottom: 14px; width: auto; align-self: flex-end; }
+    @media(min-width:620px) { .dispatch-form-area { padding: 14px 18px 17px; } .dispatch-list-panel { padding-left: 18px; padding-right: 18px; } .dispatch-photo-grid { grid-template-columns:repeat(auto-fill,minmax(112px,1fr)); } }
+    @media(max-width:370px) { .dispatch-heading { margin-left: 0; } .dispatch-form.card { padding: 13px 12px; } .dispatch-capture-row { gap: 9px; } .dispatch-note-row { grid-template-columns:minmax(0,1fr) 92px; } .compact-add.btn { width: 92px; } .dispatch-actu { padding: 6px; } }
+  </style>
 </head>
-<body>
+<body class="dispatch-page">
+  <header class="app-header dispatch-header">
+    <button id="menuBtn" class="header-icon" type="button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="dispatchDrawer">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <button id="refreshBtn" class="header-icon" type="button" aria-label="Actualiser l'application">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5"/><path d="M5.5 9a7.5 7.5 0 0 1 13.1-2L20 11M4 13l1.4 4A7.5 7.5 0 0 0 18.5 15"/></svg>
+    </button>
+    <h1 class="dispatch-heading">Dispatch</h1>
+    <span class="dispatch-actu" title="Tournées et colis synchronisés avec la base">ACTU</span>
+    <button id="logoutBtn" class="header-icon dispatch-exit" type="button" aria-label="Se déconnecter">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M14 16l4-4-4-4M8 12h10"/></svg>
+    </button>
+  </header>
 
-    <header class="app-header">
-        <div class="flex items-center gap-3">
-            <a href="dashboard.html" style="text-decoration: none; font-size: 1.5rem;">⬅️</a>
-            <div>
-                <h1 class="header-title" style="margin-bottom: 0;">Dispatch</h1>
-                <span class="text-sm text-muted">Préparer une tournée</span>
-            </div>
-        </div>
-    </header>
+  <main class="dispatch-main">
+    <section class="dispatch-form-area" aria-label="Préparer une tournée">
+      <div class="dispatch-identity">
+        <select id="livreurSelect" class="form-control" aria-label="Livreur"><option value="">Livreur…</option></select>
+        <div id="zoneContainer"><input id="zoneDisplay" class="form-control" type="text" placeholder="Zone…" readonly aria-label="Zone affectée au livreur" title="La zone est définie dans la fiche du livreur"></div>
+      </div>
 
-    <div class="scrollable-content container">
-        
-        <!-- Selection Livreur -->
-        <div class="card mb-4">
-            <div class="form-group mb-2">
-                <label for="livreurSelect">Livreur</label>
-                <select id="livreurSelect" class="form-control" style="font-size: 1.1rem; padding: 0.75rem;">
-                    <option value="">-- Choisir un livreur --</option>
-                </select>
-            </div>
-            
-            <div id="zoneContainer" class="hidden">
-                <p class="text-sm text-muted">Zone de livraison : <strong id="zoneDisplay" style="color: var(--text-main);"></strong></p>
-                <p id="tourneeStatus" class="text-sm mt-1 font-bold"></p>
-            </div>
-        </div>
-
-        <!-- Formulaire d'ajout de colis -->
-        <div class="card mb-4" id="colisFormContainer" style="opacity: 0.5; pointer-events: none; transition: opacity 0.3s;">
-            <h3 style="font-size: 1.1rem;">Nouveau Colis</h3>
-            
-            <div class="camera-container mt-3">
-                <div class="placeholder-icon" id="photoPlaceholder">📷 Prendre Photo</div>
-                <img id="cameraPreview" alt="Aperçu">
-                <!-- Accept capture for mobile devices -->
-                <input type="file" id="photoInput" accept="image/*" capture="environment" class="file-input-overlay">
-            </div>
-
-            <div class="form-group mb-3">
-                <label for="montantInput">Montant à récupérer</label>
-                
-                <label class="checkbox-wrapper mt-2 mb-2">
-                    <input type="checkbox" id="isPaidCheckbox">
-                    <span style="color: var(--success);">Colis déjà payé</span>
-                </label>
-
-                <input type="number" inputmode="numeric" id="montantInput" class="form-control" placeholder="Ex: 15000" style="font-size: 1.2rem;">
-            </div>
-
-            <div class="form-group mb-3">
-                <label for="noteInput">Note (Facultatif)</label>
-                <input type="text" id="noteInput" class="form-control" placeholder="Observation...">
-            </div>
-
-            <button id="addColisBtn" class="btn btn-outline" style="width: 100%; border-width: 2px;">+ AJOUTER LE COLIS</button>
+      <div id="colisFormContainer" class="card dispatch-form" style="opacity:.5;pointer-events:none;">
+        <div class="dispatch-capture-row">
+          <div class="camera-container">
+            <span id="photoPlaceholder" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="14" r="3.2"/></svg></span>
+            <img id="cameraPreview" alt="Aperçu du colis">
+            <input type="file" id="photoInput" accept="image/*" capture="environment" class="file-input-overlay" aria-label="Prendre ou choisir la photo du colis">
+          </div>
+          <div class="amount-box">
+            <input id="montantInput" type="number" inputmode="numeric" min="0" placeholder="Montant F" aria-label="Montant à récupérer en francs CFA">
+            <label class="paid-option"><input id="isPaidCheckbox" type="checkbox">Colis déjà payé (0 F)</label>
+          </div>
         </div>
 
-        <!-- Grille des colis locaux -->
-        <h3 class="mb-3 flex justify-between items-center" id="gridTitle" style="display: none;">
-            Panier temporaire
-        </h3>
-
-        <div id="localColisGrid" class="photo-grid mb-4">
-            <!-- Injecté en JS -->
+        <div class="dispatch-note-row">
+          <input id="noteInput" class="form-control" type="text" maxlength="180" placeholder="Note (optionnel)…" aria-label="Note facultative sur le colis">
+          <button id="addColisBtn" class="btn compact-add" type="button">AJOUTER</button>
         </div>
+      </div>
+      <p id="tourneeStatus" class="dispatch-status" role="status"></p>
+    </section>
 
-    </div>
+    <section id="parcelScroll" class="dispatch-list-panel" aria-label="Colis en cours de préparation">
+      <h2 id="gridTitle" class="dispatch-list-title">Colis préparés</h2>
+      <div id="emptyCart" class="dispatch-empty">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 8 4.5v11L12 22l-8-4.5v-11L12 2Z"/><path d="m4 6.5 8 4.5 8-4.5M12 11v11"/></svg>
+        <span>Aucun colis ajouté</span>
+      </div>
+      <div id="localColisGrid" class="photo-grid dispatch-photo-grid"></div>
+    </section>
+  </main>
 
-    <!-- Sticky Footer pour Validation -->
-    <div class="sticky-footer" id="stickyFooter" style="display: none;">
-        <div class="recap-row">
-            <span class="text-muted"><span id="localColisCount">0</span> COLIS</span>
-            <span class="text-lg" id="localTotal" style="color: var(--primary);">0 F</span>
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; align-items: center;" id="progressStatusContainer" class="hidden">
-            <span id="progressText" class="text-sm font-bold">Envoi...</span>
-            <span id="progressCount" class="text-sm">0/0</span>
-        </div>
-        <div class="progress-container" id="progressContainer">
-            <div class="progress-bar" id="progressBar"></div>
-        </div>
+  <div id="stickyFooter" class="sticky-footer dispatch-footer">
+    <div class="recap-row"><span class="text-muted"><span id="localColisCount">0</span> COLIS</span><strong id="localTotal">0 F</strong></div>
+    <div id="progressStatusContainer" class="recap-row hidden"><span id="progressText">Envoi…</span><span id="progressCount">0/0</span></div>
+    <div id="progressContainer" class="progress-container"><div id="progressBar" class="progress-bar"></div></div>
+    <button id="validateAllBtn" class="btn btn-primary" type="button">VALIDER TOUT</button>
+  </div>
 
-        <button id="validateAllBtn" class="btn btn-primary" style="padding: 1rem; font-size: 1.1rem;">
-            VALIDER TOUT
-        </button>
-    </div>
+  <div id="dispatchDrawerBackdrop" class="dispatch-drawer-backdrop">
+    <nav id="dispatchDrawer" class="dispatch-drawer" aria-label="Menu de l'application">
+      <button id="closeMenuBtn" type="button" class="btn btn-outline">Fermer</button>
+      <h2>DK Boutique</h2>
+      <a href="dispatch.html" aria-current="page">Nouveau départ</a>
+      <a href="point.html">Le Point</a>
+      <a href="rapports.html">Archives</a>
+      <a href="livreurs.html">Équipe</a>
+      <a href="dashboard.html">Statistiques</a>
+    </nav>
+  </div>
 
-    <script type="module" src="js/dispatch.js?v=6"></script>
-    <script type="module" src="js/navigation.js?v=1"></script>
+  <script type="module" src="js/dispatch.js?v=7"></script>
+  <script type="module" src="js/navigation.js?v=1"></script>
 </body>
 </html>
