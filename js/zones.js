@@ -32,6 +32,7 @@ async function loadZones() {
     const input = document.createElement('input');
     input.className = 'form-control';
     input.value = zone.nom;
+    input.defaultValue = zone.nom;
 
     const meta = document.createElement('div');
     meta.className = 'list-meta';
