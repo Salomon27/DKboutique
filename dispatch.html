@@ -311,6 +311,14 @@
       padding:11px 12px 12px!important;
       overflow:hidden;
     }
+    /* Physical inset wins over legacy left/right and inset-inline rules on iOS. */
+    body.dispatch-page .dispatch-footer.sticky-footer {
+      position:fixed!important;
+      inset: auto auto calc(12px + env(safe-area-inset-bottom)) 50%!important;
+      width:min(calc(100vw - 26px),600px)!important;
+      max-width:600px!important;
+      transform:translateX(-50%)!important;
+    }
     .dispatch-footer .recap-row {
       display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;
       width:100%;min-width:0;gap:8px;align-items:center;
