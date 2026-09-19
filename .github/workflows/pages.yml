@@ -3,7 +3,7 @@ name: Deploy DK Boutique to GitHub Pages
 on:
   push:
     branches:
-      - fix/core-stability
+      - main
   workflow_dispatch:
 
 permissions:
