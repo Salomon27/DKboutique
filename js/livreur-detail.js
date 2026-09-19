@@ -1,5 +1,6 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
+import { enableAutoSync } from './auto-sync.js';
 import { formatFcfa, formatDate, getQueryParam, createEmptyState, createBadge } from './page-utils.js';
 
 const livreurId = getQueryParam('id');
@@ -188,6 +189,10 @@ async function init() {
   try {
     await loadZones();
     await Promise.all([loadLivreur(), loadHistory()]);
+    enableAutoSync(() => loadHistory(), {
+      tables: ['sorties', 'colis'], intervalMs: 30000,
+      shouldRefresh: () => !document.activeElement?.matches('input, textarea, select')
+    });
   } catch (err) {
     console.error(err);
     historyList.replaceChildren(createEmptyState(err.message || 'Erreur de chargement.'));
