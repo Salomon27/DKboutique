@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F4F7FB">
+  <title>Administration privée · DK Boutique</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=11">
+  <link rel="stylesheet" href="css/management-pro.css?v=1">
+  <link rel="stylesheet" href="css/tablet-sync.css?v=1">
+  <style>
+    .owner-shell {width:min(calc(100% - 22px),740px);margin:0 auto;padding:17px 0 45px;}
+    .owner-shell .card {padding:17px;margin-bottom:13px;}
+    .owner-title {font-size:1.04rem;font-weight:900;letter-spacing:-.02em;}
+    .owner-text {color:#61738D;font-size:.76rem;line-height:1.5;margin-top:5px;}
+    .owner-caution {background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;
+      padding:10px 12px;color:#854D0E;font-size:.76rem;line-height:1.5;margin-top:12px;}
+    .owner-shell .form-group {margin:13px 0;}
+    .owner-shell label {font-size:.77rem;font-weight:850;}
+    .owner-shell .form-control {width:100%;min-height:45px;font-size:16px;background:#F9FBFF;}
+    .owner-shell .btn {min-height:46px;border-radius:11px;font-size:.8rem;font-weight:900;}
+    .owner-shell .owner-danger {background:#B91C1C;color:#FFF;}
+    .owner-shell .owner-danger:disabled {background:#E9A1A1;color:#FFF;}
+    .owner-verify {display:flex;align-items:center;gap:9px;line-height:1.4;color:#6B2424;}
+    .owner-verify input {width:19px;height:19px;flex:0 0 19px;accent-color:#B91C1C;}
+    .owner-result {margin-top:12px;font-size:.76rem;line-height:1.5;border-radius:10px;
+      padding:10px 12px;background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;overflow-wrap:anywhere;}
+    .owner-result.error {color:#991B1B;background:#FFF1F2;border-color:#FECDD3;}
+    .owner-row {display:flex;align-items:center;justify-content:space-between;gap:12px;}
+    .owner-row .btn {width:auto;min-height:37px;padding:8px 11px;}
+    .owner-shell details {border:1px solid #DBE5F5;border-radius:13px;padding:11px 12px;background:#FFF;margin-bottom:13px;}
+    .owner-shell details summary {cursor:pointer;font-weight:900;font-size:.83rem;list-style:none;display:flex;align-items:center;justify-content:space-between;}
+    .owner-shell details summary::after {content:"＋";font-size:1rem;color:#245DE1;}
+    .owner-shell details[open] summary::after {content:"−";}
+    .owner-shell details summary::-webkit-details-marker {display:none;}
+    .owner-secret {font-family:inherit;letter-spacing:.04em;}
+    .owner-return {width:auto!important;margin-left:auto;min-height:37px!important;padding:7px 11px!important;font-size:.74rem!important;}
+    @media(max-width:410px){.owner-shell .card {padding:13px;}.owner-row {flex-wrap:wrap;}}
+  </style>
+</head>
+<body class="dk-management">
+  <header class="app-header">
+    <div class="dk-page-brand"><span class="dk-page-mark" aria-hidden="true">DK</span>
+      <div><div class="dk-page-kicker">DK BOUTIQUE · ACCÈS RESTREINT</div><h1 class="header-title">Administration privée</h1></div>
+    </div>
+    <a class="btn btn-outline owner-return" href="patronne.html">Retour</a>
+  </header>
+  <main class="owner-shell">
+    <section id="ownerGuard" class="card" role="status"><h2 class="owner-title">Vérification de l’accès…</h2></section>
+    <div id="ownerWorkspace" class="hidden">
+      <section class="card">
+        <h2 class="owner-title">Gestion réservée</h2>
+        <p class="owner-text">Deux confirmations et votre code privé sont requis pour toute suppression.</p>
+        <div id="ownerFeedback" class="owner-result hidden" role="status" aria-live="polite"></div>
+      </section>
+
+      <details id="ownerDriverPanel">
+        <summary>Retirer un livreur</summary>
+        <p class="owner-text">Avec historique : désactivation uniquement, pour conserver les dossiers.</p>
+        <div class="form-group">
+          <label for="ownerLivreurSelect">Livreur</label>
+          <select id="ownerLivreurSelect" class="form-control"><option value="">Chargement…</option></select>
+        </div>
+        <div class="form-group">
+          <label for="ownerDriverCode">Code privé</label>
+          <input id="ownerDriverCode" class="form-control owner-secret" type="password" autocomplete="off" spellcheck="false" placeholder="Saisissez votre code">
+        </div>
+        <button id="ownerRetireBtn" type="button" class="btn btn-outline">RETIRER LE LIVREUR</button>
+      </details>
+
+      <details id="ownerResetPanel">
+        <summary>Réinitialiser les données</summary>
+        <div class="owner-caution">
+          Irréversible : supprime les tournées, colis, opérations, livreurs et zones.
+          Les comptes administrateurs restent disponibles. Exportez les dossiers utiles avant de continuer.
+        </div>
+        <div class="form-group">
+          <label class="owner-verify" for="ownerResetAcknowledge">
+            <input id="ownerResetAcknowledge" type="checkbox">
+            Je comprends que les données et les photos seront perdues.
+          </label>
+        </div>
+        <div class="form-group">
+          <label for="ownerResetConfirm">Écrivez EFFACER pour confirmer</label>
+          <input id="ownerResetConfirm" class="form-control" type="text" maxlength="7" autocomplete="off" autocapitalize="characters" placeholder="EFFACER">
+        </div>
+        <div class="form-group">
+          <label for="ownerResetCode">Code privé</label>
+          <input id="ownerResetCode" class="form-control owner-secret" type="password" autocomplete="off" spellcheck="false" placeholder="Saisissez votre code">
+        </div>
+        <button id="ownerResetBtn" type="button" class="btn owner-danger" disabled>RÉINITIALISER LES DONNÉES</button>
+      </details>
+
+      <section id="ownerCleanupPanel" class="card hidden">
+        <h2 class="owner-title">Nettoyage des photos</h2>
+        <p id="ownerCleanupCount" class="owner-text">Chargement…</p>
+        <p class="owner-text">Si la connexion coupe, vous pouvez reprendre le nettoyage avec votre code privé.</p>
+        <div class="form-group"><label for="ownerCleanupCode">Code privé</label>
+          <input id="ownerCleanupCode" class="form-control owner-secret" type="password" autocomplete="off" spellcheck="false" placeholder="Saisissez votre code">
+        </div>
+        <button id="ownerCleanupBtn" type="button" class="btn btn-primary">REPRENDRE LE NETTOYAGE</button>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="js/maintenance.js?v=1"></script>
+  <script type="module" src="js/navigation.js?v=2"></script>
+</body>
+</html>
