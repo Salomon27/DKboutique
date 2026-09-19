@@ -22,13 +22,13 @@ export function setText(el, value) {
   if (el) el.textContent = value ?? '';
 }
 
-export async function signedPhotoUrl(path, expiresInSeconds = 86400) {
+export async function signedPhotoUrl(path, expiresInSeconds = 300) {
   if (!path) return '';
   if (/^https?:|^blob:/.test(path)) return path;
 
   const now = Date.now();
   const cached = signedUrlCache.get(path);
-  if (cached && now < cached.expiresAt - 300000) return cached.url;
+  if (cached && now < cached.expiresAt - 30000) return cached.url;
 
   const { data, error } = await supabase.storage
     .from('colis-photos')
