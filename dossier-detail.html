@@ -8,40 +8,79 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <style>
-    .parcel-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
-    .parcel-item { border:1px solid var(--border); border-radius:14px; overflow:hidden; background:var(--bg-card); }
-    .parcel-item img { width:100%; aspect-ratio:1; object-fit:cover; display:block; background:var(--border); }
-    .parcel-body { padding:.7rem; }
-    .timeline-line { border-left:2px solid var(--border); margin-left:.5rem; padding-left:1rem; }
-    .timeline-entry { margin-bottom:1rem; position:relative; }
-    .timeline-entry::before { content:''; width:10px; height:10px; background:var(--primary); border-radius:50%; position:absolute; left:-1.38rem; top:.3rem; }
+    .dossier-hero {margin-bottom:14px;padding:19px;background:radial-gradient(circle at 95% 5%,rgba(37,99,235,.12),transparent 42%),#fff;}
+    .dossier-kicker {font-size:.7rem;text-transform:uppercase;color:var(--primary);letter-spacing:.07em;font-weight:900;}
+    .dossier-hero h2 {font-size:1.28rem;margin:6px 0;}
+    .dossier-hero-meta {font-size:.8rem;color:var(--text-muted);line-height:1.5;}
+    .dossier-hero-footer {display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:14px;}
+    .dossier-hero-footer .btn {width:auto;font-size:.78rem;}
+    .dossier-section {margin-bottom:14px;}
+    .dossier-section h2 {font-size:1rem;font-weight:900;margin:0 0 12px;}
+    .ledger-row {display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);font-size:.83rem;}
+    .ledger-row:last-child {border-bottom:0;}
+    .ledger-row strong {white-space:nowrap;}
+    .ledger-row.net {font-size:1.02rem;font-weight:900;padding:14px 12px;margin-top:8px;border:1px solid #BFDBFE;background:var(--primary-soft);border-radius:14px;color:var(--primary);}
+    .audit-panel {border:1px solid #FDE68A;background:#FFFBEB;border-radius:18px;padding:14px 16px;margin-bottom:14px;}
+    .audit-panel.ok {border-color:#BBF7D0;background:#F0FDF4;}
+    .audit-panel h2 {font-size:.87rem;margin:0 0 8px;}
+    .audit-panel p {font-size:.75rem;line-height:1.55;color:#92400E;}
+    .audit-panel.ok p {color:#166534;}
+    .audit-panel p + p {margin-top:6px;}
+    .dossier-timeline {border-left:2px solid var(--border);margin-left:7px;padding-left:18px;}
+    .dossier-event {position:relative;margin-bottom:15px;}
+    .dossier-event:last-child {margin-bottom:0;}
+    .dossier-event::before {content:"";position:absolute;left:-24px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 4px #EFF6FF;}
+    .event-top {display:flex;justify-content:space-between;gap:10px;font-size:.79rem;font-weight:900;}
+    .event-time {font-size:.7rem;color:var(--text-muted);font-weight:700;white-space:nowrap;}
+    .event-detail {font-size:.74rem;color:var(--text-muted);margin-top:3px;overflow-wrap:anywhere;}
+    .event-amount {font-weight:900;font-size:.8rem;margin-top:3px;}
+    .parcel-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+    .parcel-item {background:#fff;border:1px solid var(--border);border-radius:19px;overflow:hidden;}
+    .parcel-photo {width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#EEF2F7;cursor:zoom-in;}
+    .parcel-photo-empty {aspect-ratio:1;background:#EEF2F7;display:grid;place-items:center;font-size:.75rem;color:var(--text-muted);}
+    .parcel-body {padding:12px;}
+    .parcel-body strong {font-size:1.02rem;display:block;}
+    .parcel-meta {font-size:.7rem;color:var(--text-muted);margin-top:4px;line-height:1.45;}
+    .parcel-note {font-size:.75rem;margin-top:9px;background:#F8FAFC;border-radius:10px;padding:8px;overflow-wrap:anywhere;}
+    .parcel-flags {display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+    .parcel-flags .badge {font-size:.6rem;padding:4px 7px;}
+    .photo-viewer {position:fixed;inset:0;z-index:2000;background:rgba(2,6,23,.95);display:none;align-items:center;justify-content:center;padding:54px 14px 22px;}
+    .photo-viewer.open {display:flex;}
+    .photo-viewer img {max-width:100%;max-height:100%;object-fit:contain;border-radius:12px;}
+    .photo-viewer button {position:absolute;right:18px;top:12px;min-height:38px;width:auto;background:white;color:#0F172A;font-weight:900;}
+    @media (max-width:420px) {.event-top {flex-direction:column;gap:2px;}.event-time {white-space:normal;}.parcel-grid {gap:8px;}.parcel-body {padding:9px;}}
   </style>
 </head>
 <body>
   <header class="app-header">
     <div>
-      <h1 class="header-title" style="margin:0;">DOSSIER TOURNÉE</h1>
-      <div id="headerMeta" class="text-sm text-muted">Chargement...</div>
+      <div class="text-sm text-muted" style="font-weight:800;margin-bottom:3px;">DK BOUTIQUE</div>
+      <h1 class="header-title">Dossier de tournée</h1>
+      <div id="headerMeta" class="text-sm text-muted">Chargement…</div>
     </div>
-    <a href="rapports.html" class="btn btn-outline small-action">Retour</a>
+    <a href="rapports.html" id="backLink" class="btn btn-outline small-action">Archives</a>
   </header>
 
   <main class="page-shell">
-    <section class="stats-grid mb-4">
-      <div class="stat-card"><div class="stat-label">Chargement</div><div class="stat-value" id="statLoad">0 F</div></div>
-      <div class="stat-card"><div class="stat-label">Retours</div><div class="stat-value" id="statReturns">0 F</div></div>
-      <div class="stat-card"><div class="stat-label">Frais + livraisons</div><div class="stat-value" id="statFees">0 F</div></div>
-      <div class="stat-card"><div class="stat-label">Net</div><div class="stat-value" id="statNet">0 F</div></div>
+    <section class="card dossier-hero" id="dossierHero">
+      <div class="dossier-kicker" id="dossierId">Dossier</div>
+      <h2 id="livreurName">Chargement…</h2>
+      <div class="dossier-hero-meta" id="tourMeta"></div>
+      <div class="dossier-hero-footer">
+        <span id="statusBadge" class="badge badge-primary">EN CHARGEMENT</span>
+        <button id="exportDossierBtn" class="btn btn-outline" disabled type="button">Exporter le dossier (CSV)</button>
+      </div>
     </section>
 
-    <section class="card mb-4">
-      <div class="page-title-row">
-        <div>
-          <h2 id="livreurName" style="margin:0;">Livreur</h2>
-          <div id="tourMeta" class="text-sm text-muted"></div>
-        </div>
-        <span id="statusBadge" class="badge badge-primary">--</span>
-      </div>
+    <section class="stats-grid mb-4" aria-label="Synthèse financière">
+      <div class="stat-card"><div class="stat-label">Chargement total</div><div class="stat-value" id="statLoad">0 F</div></div>
+      <div class="stat-card"><div class="stat-label">Retours confirmés</div><div class="stat-value" id="statReturns">0 F</div></div>
+      <div class="stat-card"><div class="stat-label">Frais + livraisons</div><div class="stat-value" id="statFees">0 F</div></div>
+      <div class="stat-card"><div class="stat-label">Net à encaisser</div><div class="stat-value" id="statNet">0 F</div></div>
+    </section>
+
+    <section class="card dossier-section">
+      <h2>Chargement et traitement</h2>
       <div class="stats-grid">
         <div><div class="stat-label">Colis initiaux</div><div id="countInitial" class="font-bold">0</div></div>
         <div><div class="stat-label">Ajouts</div><div id="countAdd" class="font-bold">0</div></div>
@@ -50,18 +89,39 @@
       </div>
     </section>
 
-    <section class="card mb-4">
-      <h2>Chronologie</h2>
-      <div id="timeline" class="timeline-line"></div>
+    <section class="card dossier-section">
+      <h2>Détail de l'encaissement</h2>
+      <div class="ledger-row"><span>Chargement initial</span><strong id="ledgerInitial">0 F</strong></div>
+      <div class="ledger-row"><span>Ajouts</span><strong id="ledgerAdds">0 F</strong></div>
+      <div class="ledger-row"><span>Retours confirmés</span><strong id="ledgerReturns">0 F</strong></div>
+      <div class="ledger-row"><span>Livraisons déduites</span><strong id="ledgerDelivery">0 F</strong></div>
+      <div class="ledger-row"><span>Autres frais</span><strong id="ledgerFees">0 F</strong></div>
+      <div class="ledger-row net"><span id="netLabel">Net figé à la clôture</span><strong id="ledgerNet">0 F</strong></div>
     </section>
 
-    <section class="card">
-      <h2>Colis</h2>
+    <section id="auditPanel" class="audit-panel" aria-live="polite">
+      <h2 id="auditTitle">Contrôle de cohérence</h2>
+      <div id="auditDetails"><p>Chargement du contrôle…</p></div>
+    </section>
+
+    <section class="card dossier-section">
+      <h2>Chronologie enregistrée</h2>
+      <div id="timeline" class="dossier-timeline"></div>
+      <p class="text-sm text-muted" style="margin-top:14px;font-size:.7rem;">Les opérations supprimées avant clôture ne figurent pas dans cet historique.</p>
+    </section>
+
+    <section class="card dossier-section">
+      <h2 id="parcelTitle">Colis du dossier</h2>
       <div id="parcelGrid" class="parcel-grid"></div>
     </section>
   </main>
 
-  <script type="module" src="js/dossier-detail.js?v=1"></script>
+  <div id="photoViewer" class="photo-viewer" role="dialog" aria-modal="true" aria-label="Agrandissement photo du colis">
+    <button id="closeViewerBtn" class="btn btn-outline" type="button">Fermer</button>
+    <img id="viewerImage" alt="Photo du colis agrandie">
+  </div>
+
+  <script type="module" src="js/dossier-detail.js?v=2"></script>
   <script type="module" src="js/navigation.js?v=1"></script>
 </body>
 </html>
