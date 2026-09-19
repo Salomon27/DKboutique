@@ -13,6 +13,16 @@ let selectedForRetour = []; // stocke les IDs des colis sélectionnés pour le r
 
 const signedUrlCache = new Map();
 
+function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = String(value ?? '');
+    return div.innerHTML;
+}
+
+function formatAmount(value) {
+    return Number(value || 0).toLocaleString('fr-FR');
+}
+
 // UI Elements
 const tourneeSelect = document.getElementById('tourneeSelect');
 const pointContent = document.getElementById('pointContent');
@@ -108,7 +118,7 @@ async function loadSortiesEnCours() {
         data.forEach(s => {
             const opt = document.createElement('option');
             opt.value = s.id;
-            opt.textContent = `${s.livreur_nom} (${s.nb_colis_total} colis) - ${s.net_a_encaisser.toLocaleString('fr-FR')} F`;
+            opt.textContent = `${s.livreur_nom} (${s.nb_colis_total} colis) - ${formatAmount(s.net_a_encaisser)} F`;
             tourneeSelect.appendChild(opt);
         });
     } catch (err) {
@@ -149,7 +159,7 @@ async function refreshPointData() {
             return;
         }
 
-        renderAll();
+        await renderAll();
     } catch (err) {
         console.error(err);
     } finally {
@@ -157,10 +167,12 @@ async function refreshPointData() {
     }
 }
 
-function renderAll() {
+async function renderAll() {
     renderHeaderAndSummary();
-    renderRetoursPanel();
-    renderLivraisonsPanel();
+    await Promise.all([
+        renderRetoursPanel(),
+        renderLivraisonsPanel()
+    ]);
     renderFraisPanel();
     renderTimeline();
 }
@@ -213,15 +225,15 @@ async function getPhotoUrl(path) {
 function renderHeaderAndSummary() {
     livreurName.textContent = currentResume.livreur_nom;
     zoneName.textContent = currentResume.zone_nom || 'Sans zone';
-    chargementInitialAmount.textContent = currentResume.montant_initial.toLocaleString('fr-FR') + ' F';
+    chargementInitialAmount.textContent = formatAmount(currentResume.montant_initial) + ' F';
     totalColisCount.textContent = currentResume.nb_colis_total;
 
-    recapChargement.textContent = currentResume.montant_initial.toLocaleString('fr-FR') + ' F';
-    recapAjouts.textContent = '+' + currentResume.montant_ajouts.toLocaleString('fr-FR') + ' F';
-    recapRetours.textContent = '-' + currentResume.montant_retours.toLocaleString('fr-FR') + ' F';
-    recapDeductions.textContent = '-' + currentResume.deduction_livraison.toLocaleString('fr-FR') + ' F';
-    recapFrais.textContent = '-' + currentResume.frais_divers.toLocaleString('fr-FR') + ' F';
-    recapNet.textContent = currentResume.net_a_encaisser.toLocaleString('fr-FR') + ' F';
+    recapChargement.textContent = formatAmount(currentResume.montant_initial) + ' F';
+    recapAjouts.textContent = '+' + formatAmount(currentResume.montant_ajouts) + ' F';
+    recapRetours.textContent = '-' + formatAmount(currentResume.montant_retours) + ' F';
+    recapDeductions.textContent = '-' + formatAmount(currentResume.deduction_livraison) + ' F';
+    recapFrais.textContent = '-' + formatAmount(currentResume.frais_divers) + ' F';
+    recapNet.textContent = formatAmount(currentResume.net_a_encaisser) + ' F';
 }
 
 async function renderRetoursPanel() {
@@ -240,8 +252,8 @@ async function renderRetoursPanel() {
         clone.querySelector('.point-colis-photo').src = await getPhotoUrl(colis.photo_path);
         
         const montantEl = clone.querySelector('.point-colis-montant');
-        if (colis.valeur === 0) { montantEl.textContent = 'PAYÉ'; montantEl.classList.add('text-success'); }
-        else montantEl.textContent = colis.valeur.toLocaleString('fr-FR') + ' F';
+        if (Number(colis.valeur) === 0) { montantEl.textContent = 'PAYÉ'; montantEl.classList.add('text-success'); }
+        else montantEl.textContent = formatAmount(colis.valeur) + ' F';
 
         const statutEl = clone.querySelector('.point-colis-statut');
         statutEl.textContent = colis.statut_livreur === 'retourne' ? 'SIGNALÉ RETOUR' : colis.statut_livreur.toUpperCase();
@@ -259,11 +271,11 @@ async function renderRetoursPanel() {
             if (colis.statut_livreur === 'retourne') {
                 checkbox.checked = true;
                 selectedForRetour.push(colis.id);
-                previewTotal += colis.valeur;
+                previewTotal += Number(colis.valeur);
             }
             checkbox.addEventListener('change', () => {
-                if (checkbox.checked) { selectedForRetour.push(colis.id); previewTotal += colis.valeur; }
-                else { selectedForRetour = selectedForRetour.filter(id => id !== colis.id); previewTotal -= colis.valeur; }
+                if (checkbox.checked) { selectedForRetour.push(colis.id); previewTotal += Number(colis.valeur); }
+                else { selectedForRetour = selectedForRetour.filter(id => id !== colis.id); previewTotal -= Number(colis.valeur); }
                 updateRetoursPreview(previewTotal);
             });
         }
@@ -279,7 +291,7 @@ function updateRetoursPreview(total) {
 
 async function renderLivraisonsPanel() {
     livraisonsList.innerHTML = '';
-    const colisPayes = currentColis.filter(c => c.valeur === 0);
+    const colisPayes = currentColis.filter(c => Number(c.valeur) === 0);
     
     for (const colis of colisPayes) {
         const opDed = currentOps.find(op => op.colis_id === colis.id && op.type === 'deduction_livraison');
@@ -309,8 +321,8 @@ function renderFraisPanel() {
         div.style.borderBottom = '1px solid var(--border)';
         div.innerHTML = `
             <div>
-                <div class="font-bold">${f.montant.toLocaleString('fr-FR')} F</div>
-                <div class="text-muted">${f.commentaire}</div>
+                <div class="font-bold">${formatAmount(f.montant)} F</div>
+                <div class="text-muted">${escapeHtml(f.commentaire || '')}</div>
             </div>
             <button class="btn btn-outline btn-sm text-danger" style="padding: 2px 8px;" onclick="handleAnnulerOp('${f.id}')">Suppr.</button>
         `;
@@ -323,11 +335,11 @@ function renderTimeline() {
     const events = [];
     events.push({ time: new Date(currentResume.created_at), type: 'DÉPART', desc: `${currentColis.filter(c => c.source === 'initial').length} colis initiaux`, amount: currentResume.montant_initial, color: 'var(--text-main)' });
     
-    currentColis.filter(c => c.source === 'ajout').forEach(c => events.push({ time: new Date(c.created_at), type: 'AJOUT', desc: `Colis ${c.valeur === 0 ? 'PAYÉ' : 'supplémentaire'}`, amount: c.valeur, color: 'var(--success)' }));
+    currentColis.filter(c => c.source === 'ajout').forEach(c => events.push({ time: new Date(c.created_at), type: 'AJOUT', desc: `Colis ${Number(c.valeur) === 0 ? 'PAYÉ' : 'supplémentaire'}`, amount: Number(c.valeur), color: 'var(--success)' }));
     currentOps.forEach(op => {
-        if (op.type === 'retour') events.push({ time: new Date(op.created_at), type: 'RETOUR CONFIRMÉ', desc: 'Déduction du net', amount: -op.montant, color: 'var(--danger)' });
-        else if (op.type === 'deduction_livraison') events.push({ time: new Date(op.created_at), type: 'LIVRAISON DÉDUITE', desc: 'Frais sur colis payé', amount: -op.montant, color: 'var(--warning)' });
-        else if (op.type === 'frais_divers') events.push({ time: new Date(op.created_at), type: 'FRAIS DIVERS', desc: op.commentaire || '', amount: -op.montant, color: 'var(--primary)' });
+        if (op.type === 'retour') events.push({ time: new Date(op.created_at), type: 'RETOUR CONFIRMÉ', desc: 'Déduction du net', amount: -Number(op.montant), color: 'var(--danger)' });
+        else if (op.type === 'deduction_livraison') events.push({ time: new Date(op.created_at), type: 'LIVRAISON DÉDUITE', desc: 'Frais sur colis payé', amount: -Number(op.montant), color: 'var(--warning)' });
+        else if (op.type === 'frais_divers') events.push({ time: new Date(op.created_at), type: 'FRAIS DIVERS', desc: op.commentaire || '', amount: -Number(op.montant), color: 'var(--primary)' });
     });
 
     events.sort((a, b) => a.time - b.time).forEach(ev => {
@@ -337,8 +349,8 @@ function renderTimeline() {
         div.innerHTML = `
             <div class="timeline-time">${ev.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
             <div class="flex justify-between items-center mt-1">
-                <div><div class="timeline-content" style="color: ${ev.color};">${ev.type}</div><div class="text-sm text-muted">${ev.desc}</div></div>
-                <div class="timeline-amount" style="color: ${ev.color};">${ev.amount === 0 ? '0 F' : `${sign}${ev.amount.toLocaleString('fr-FR')} F`}</div>
+                <div><div class="timeline-content" style="color: ${ev.color};">${escapeHtml(ev.type)}</div><div class="text-sm text-muted">${escapeHtml(ev.desc)}</div></div>
+                <div class="timeline-amount" style="color: ${ev.color};">${ev.amount === 0 ? '0 F' : `${sign}${formatAmount(ev.amount)} F`}</div>
             </div>`;
         timelineContainer.appendChild(div);
     });
@@ -458,14 +470,21 @@ window.handleAnnulerOp = async function(opId) {
 };
 
 async function handleCloture() {
-    if (!confirm("Clôturer la tournée ? Le net encaissé sera figé à " + currentResume.net_a_encaisser.toLocaleString('fr-FR') + " F.")) return;
+    if (!confirm("Clôturer la tournée ? Le net encaissé sera figé à " + formatAmount(currentResume.net_a_encaisser) + " F.")) return;
     cloturerBtn.disabled = true;
     cloturerBtn.textContent = "CLÔTURE...";
     try {
         const { error } = await supabase.rpc('cloturer_sortie', { p_sortie_id: currentSortieId });
         if (error) throw error;
-        alert(`TOURNÉE CLÔTURÉE\n${currentResume.net_a_encaisser.toLocaleString('fr-FR')} F encaissés`);
-        window.location.reload();
+        alert(`TOURNÉE CLÔTURÉE\n${formatAmount(currentResume.net_a_encaisser)} F encaissés`);
+        cleanupRealtime();
+        currentSortieId = null;
+        currentResume = null;
+        currentColis = [];
+        currentOps = [];
+        pointContent.classList.add('hidden');
+        tourneeSelect.value = '';
+        await loadSortiesEnCours();
     } catch (err) {
         console.error(err);
         if (err.message && err.message.includes('déjà clôturée')) alert("Cette tournée a déjà été clôturée par ailleurs.");
