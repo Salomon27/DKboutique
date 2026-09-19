@@ -148,6 +148,10 @@
     .stage-select #zoneDisplay { font-size: .85rem; }
     .stage-select #colisFormContainer,.stage-select #parcelScroll,.stage-select #tourneeStatus { display: none!important; }
 
+    /* L'entrée de la caméra se fait sans scroller ni réserver de zone vide. */
+    @keyframes immersiveCapture { from { opacity: .25; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .stage-capture .dispatch-form.card { animation: immersiveCapture .38s cubic-bezier(.2,.8,.25,1) both; }
+
     /* 2. Livreur choisi, sans photo ni colis : grande zone de prise de photo. */
     .stage-capture .dispatch-form-area { flex: 1 1 auto; padding-bottom: 12px; }
     .stage-capture .dispatch-identity { flex: 0 0 auto; }
@@ -192,7 +196,7 @@
       .dispatch-form-hint { display: none; }
     }
     @media (prefers-reduced-motion:reduce) {
-      .stage-preview .dispatch-form,.stage-queue .dispatch-form,
+      .stage-capture .dispatch-form.card,.stage-preview .dispatch-form,.stage-queue .dispatch-form,
       .stage-preview .dispatch-list-panel,.stage-queue .dispatch-list-panel,
       .stage-preview .camera-container,.stage-queue .camera-container { animation: none; }
       .header-icon,.progress-bar { transition: none; }
@@ -299,7 +303,7 @@
     </nav>
   </div>
 
-  <script type="module" src="js/dispatch.js?v=8"></script>
+  <script type="module" src="js/dispatch.js?v=9"></script>
   <script type="module" src="js/navigation.js?v=1"></script>
 </body>
 </html>
