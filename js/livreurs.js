@@ -112,7 +112,7 @@ async function loadZones() {
   elements.zoneFilter.value=prior;
 }
 
-async function loadLivreurs() {
+async function loadLivreurs({ throwOnError = false } = {}) {
   elements.refreshTeamBtn.disabled=true;
   elements.teamError.classList.add('hidden');
   try {
@@ -127,6 +127,7 @@ async function loadLivreurs() {
     elements.teamError.textContent=error?.message||'Chargement impossible. Réessayez.';
     elements.teamError.classList.remove('hidden');
     if(!livreurs.length) elements.livreurList.replaceChildren(createEmptyState('Équipe indisponible.'));
+    if (throwOnError) throw error;
   }finally{
     elements.refreshTeamBtn.disabled=false;
   }
@@ -182,7 +183,7 @@ async function init(){
   });
   elements.refreshTeamBtn.addEventListener('click',()=>loadLivreurs());
   await Promise.allSettled([loadZones(),loadLivreurs()]);
-  enableAutoSync(() => loadLivreurs(), {
+  enableAutoSync(() => loadLivreurs({ throwOnError: true }), {
     tables: ['livreurs', 'sorties', 'colis'], intervalMs: 30000,
     shouldRefresh: () => elements.createSection.classList.contains('hidden') && !document.activeElement?.matches('input, textarea')
   });
