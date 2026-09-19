@@ -36,6 +36,32 @@ const progressText = document.getElementById('progressText');
 const progressCount = document.getElementById('progressCount');
 const progressContainer = document.getElementById('progressContainer');
 const progressBar = document.getElementById('progressBar');
+const parcelViewer = document.getElementById('parcelViewer');
+const parcelViewerImage = document.getElementById('parcelViewerImage');
+const parcelViewerTitle = document.getElementById('parcelViewerTitle');
+const parcelViewerNote = document.getElementById('parcelViewerNote');
+const closeViewerBtn = document.getElementById('closeViewerBtn');
+const previewZoomBtn = document.getElementById('previewZoomBtn');
+let lastViewerTrigger = null;
+
+function openPhoto(url, label, note = '', trigger = null) {
+    if (!url) return;
+    lastViewerTrigger = trigger;
+    parcelViewerImage.src = url;
+    parcelViewerTitle.textContent = label;
+    parcelViewerNote.textContent = note;
+    parcelViewer.classList.add('open');
+    parcelViewer.setAttribute('aria-hidden', 'false');
+    closeViewerBtn.focus();
+}
+
+function closePhoto() {
+    parcelViewer.classList.remove('open');
+    parcelViewer.setAttribute('aria-hidden', 'true');
+    parcelViewerImage.removeAttribute('src');
+    lastViewerTrigger?.focus();
+    lastViewerTrigger = null;
+}
 
 // State
 let livreurs = [];
@@ -62,6 +88,7 @@ function updateStage() {
     }
 
     colisFormContainer.setAttribute('aria-busy', String(Boolean(selectedLivreur && !formReady)));
+    previewZoomBtn.hidden = !hasPhoto;
     photoInput.disabled = !formReady || isValidating;
     addColisBtn.disabled = !formReady || !hasPhoto || isValidating;
 }
@@ -72,6 +99,7 @@ function resetPhoto() {
     previewObjectUrl = null;
     cameraPreview.removeAttribute('src');
     cameraPreview.style.display = 'none';
+    previewZoomBtn.hidden = true;
     photoPlaceholder.style.display = 'flex';
     montantInput.value = '';
     noteInput.value = '';
@@ -87,7 +115,7 @@ function closeMenu() {
 }
 
 function confirmDiscardPending() {
-    return pendingColis.length === 0 ||
+    return (pendingColis.length === 0 && !photoInput.files?.length) ||
         window.confirm('Vous avez des colis non enregistrés. Les abandonner ?');
 }
 
@@ -132,6 +160,21 @@ async function init() {
     isPaidCheckbox.addEventListener('change', handlePaidToggle);
     addColisBtn.addEventListener('click', addLocalColis);
     validateAllBtn.addEventListener('click', validateAllColis);
+    previewZoomBtn.addEventListener('click', () => {
+        openPhoto(previewObjectUrl, 'PHOTO EN COURS', noteInput.value.trim(), previewZoomBtn);
+    });
+    closeViewerBtn.addEventListener('click', closePhoto);
+    parcelViewer.addEventListener('click', event => {
+        if (event.target === parcelViewer) closePhoto();
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && parcelViewer.classList.contains('open')) closePhoto();
+    });
+    drawerBackdrop.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', event => {
+            if (isValidating || !confirmDiscardPending()) event.preventDefault();
+        });
+    });
     await loadLivreurs();
     renderPendingColis();
     updateStage();
@@ -198,7 +241,7 @@ async function handleLivreurChange(event) {
     selectedLivreur = livreurs.find(livreur => livreur.id === nextId) || null;
     setFormAvailable(false);
     tourneeStatus.textContent = '';
-    zoneDisplay.textContent = selectedLivreur?.zones?.nom || (selectedLivreur ? 'Zone non définie' : 'Attribuée après sélection du livreur');
+    zoneDisplay.textContent = selectedLivreur?.zones?.nom || (selectedLivreur ? 'Zone absente' : 'Zone automatique');
     renderPendingColis();
 
     if (!selectedLivreur) return;
@@ -257,6 +300,7 @@ async function handlePhotoChange(event) {
     if (!file) {
         cameraPreview.removeAttribute('src');
         cameraPreview.style.display = 'none';
+        previewZoomBtn.hidden = true;
         photoPlaceholder.style.display = 'flex';
         updateStage();
         return;
@@ -264,6 +308,7 @@ async function handlePhotoChange(event) {
     previewObjectUrl = URL.createObjectURL(file);
     cameraPreview.src = previewObjectUrl;
     cameraPreview.style.display = 'block';
+    previewZoomBtn.hidden = false;
     photoPlaceholder.style.display = 'none';
     updateStage();
     // Le clavier reste fermé pour laisser voir la transition vers la saisie compacte.
@@ -327,6 +372,7 @@ function renderPendingColis(animateLast = false) {
     const hasCart = pendingColis.length > 0;
 
     gridTitle.style.display = hasCart ? 'block' : 'none';
+    gridTitle.textContent = hasCart ? `COLIS · ${pendingColis.length}` : '';
     emptyCart.classList.toggle('hidden', hasCart);
     stickyFooter.style.display = hasCart ? 'flex' : 'none';
     parcelScroll.classList.toggle('has-cart', hasCart);
@@ -340,10 +386,18 @@ function renderPendingColis(animateLast = false) {
             card.style.animation = 'dispatch-add .24s ease-out both';
         }
 
+        const thumbButton = document.createElement('button');
+        thumbButton.type = 'button';
+        thumbButton.className = 'preview-card-btn';
+        thumbButton.setAttribute('aria-label', `Agrandir la photo du colis ${index + 1}`);
+        thumbButton.addEventListener('click', () => {
+            openPhoto(colis.previewUrl, `COLIS ${index + 1}`, `${colis.valeur.toLocaleString('fr-FR')} F${colis.commentaire ? ' · ' + colis.commentaire : ''}`, thumbButton);
+        });
         const img = document.createElement('img');
         img.src = colis.previewUrl;
         img.alt = `Colis ${index + 1}`;
         img.loading = 'lazy';
+        thumbButton.appendChild(img);
 
         const overlay = document.createElement('div');
         overlay.className = 'photo-overlay flex justify-between items-center';
@@ -369,7 +423,7 @@ function renderPendingColis(animateLast = false) {
         });
 
         overlay.append(price, delBtn);
-        card.append(img, overlay);
+        card.append(thumbButton, overlay);
         localColisGrid.appendChild(card);
     });
 
@@ -492,7 +546,7 @@ async function validateAllColis() {
         progressText.style.color = "var(--success)";
         
         setTimeout(() => {
-            alert(createdNewSortie ? "Nouvelle tournée créée avec succès !" : "Colis ajoutés à la tournée avec succès !");
+            alert(createdNewSortie ? "Tournée enregistrée." : "Colis enregistrés.");
             
             // Reset UX (garder le même livreur pour une saisie en chaîne)
             pendingColis.forEach(colis => URL.revokeObjectURL(colis.previewUrl));
