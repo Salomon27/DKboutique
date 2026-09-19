@@ -1,5 +1,6 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
+import { enableAutoSync } from './auto-sync.js';
 import { compressImage } from './colis-utils.js';
 
 // Elements
@@ -211,6 +212,12 @@ async function init() {
     await loadLivreurs();
     renderPendingColis();
     updateStage();
+    // Read-only refresh. Never reset a courier or any prepared parcel.
+    enableAutoSync(() => loadLivreurs(), {
+      tables: ['livreurs', 'zones'], intervalMs: 30000,
+      shouldRefresh: () => !selectedLivreur && !pendingColis.length && !photoInput.files?.length
+        && !isValidating && document.activeElement !== livreurSelect
+    });
 }
 
 async function loadLivreurs() {
