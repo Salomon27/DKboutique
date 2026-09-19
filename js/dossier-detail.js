@@ -371,7 +371,16 @@ async function loadDossier() {
   if (resumeRes.error) throw resumeRes.error;
   if (colisRes.error) throw colisRes.error;
   if (opsRes.error) throw opsRes.error;
-  if (!resumeRes.data) throw new Error('Dossier introuvable ou non autorisé.');
+  if (!resumeRes.data) {
+    // Une désactivation depuis une autre tablette masque immédiatement ce dossier.
+    resume = null;
+    colis = [];
+    ops = [];
+    parcelGrid.replaceChildren();
+    timeline.replaceChildren();
+    window.location.replace('rapports.html');
+    throw new Error('Dossier masqué ou non autorisé.');
+  }
 
   resume = resumeRes.data;
   colis = colisRes.data || [];
