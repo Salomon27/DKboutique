@@ -2,34 +2,16 @@ import { auth } from './auth.js';
 import { supabase } from './config.js';
 import { compressImage } from './colis-utils.js';
 
-let user = null;
-let activeSorties = [];
-let currentSortieId = null;
-
-let currentResume = null;
-let currentColis = [];
-let currentOps = [];
-let selectedForRetour = []; // stocke les IDs des colis sélectionnés pour le retour
-
-const signedUrlCache = new Map();
-
-function escapeHtml(value) {
-    const div = document.createElement('div');
-    div.textContent = String(value ?? '');
-    return div.innerHTML;
-}
-
-function formatAmount(value) {
-    return Number(value || 0).toLocaleString('fr-FR');
-}
-
-// UI Elements
 const tourneeSelect = document.getElementById('tourneeSelect');
+const noSortieState = document.getElementById('noSortieState');
 const pointContent = document.getElementById('pointContent');
 const livreurName = document.getElementById('livreurName');
 const zoneName = document.getElementById('zoneName');
-const chargementInitialAmount = document.getElementById('chargementInitialAmount');
+const chargementAmount = document.getElementById('chargementAmount');
 const totalColisCount = document.getElementById('totalColisCount');
+const livresCount = document.getElementById('livresCount');
+const retoursSignalesCount = document.getElementById('retoursSignalesCount');
+const attenteCount = document.getElementById('attenteCount');
 
 const recapChargement = document.getElementById('recapChargement');
 const recapAjouts = document.getElementById('recapAjouts');
@@ -37,11 +19,16 @@ const recapRetours = document.getElementById('recapRetours');
 const recapDeductions = document.getElementById('recapDeductions');
 const recapFrais = document.getElementById('recapFrais');
 const recapNet = document.getElementById('recapNet');
+const closeBar = document.getElementById('closeBar');
+const closeBarNet = document.getElementById('closeBarNet');
 const cloturerBtn = document.getElementById('cloturerBtn');
 
-const timelineContainer = document.getElementById('timelineContainer');
-const actionBtns = document.querySelectorAll('.action-btn');
-const panels = document.querySelectorAll('.panel');
+const controlCard = document.getElementById('controlCard');
+const controlTitle = document.getElementById('controlTitle');
+const controlList = document.getElementById('controlList');
+
+const tabs = [...document.querySelectorAll('.point-tab')];
+const panels = [...document.querySelectorAll('.point-panel')];
 
 const photoInput = document.getElementById('photoInput');
 const cameraPreview = document.getElementById('cameraPreview');
@@ -52,446 +39,915 @@ const noteInput = document.getElementById('noteInput');
 const addColisBtn = document.getElementById('addColisBtn');
 
 const retoursList = document.getElementById('retoursList');
-const tplRetourColis = document.getElementById('tplRetourColis');
 const retoursSelectionInfo = document.getElementById('retoursSelectionInfo');
 const confirmRetoursBtn = document.getElementById('confirmRetoursBtn');
+const pendingReturnBadge = document.getElementById('pendingReturnBadge');
 
 const livraisonsList = document.getElementById('livraisonsList');
-const tplLivraisonColis = document.getElementById('tplLivraisonColis');
 
 const fraisMontant = document.getElementById('fraisMontant');
 const fraisMotif = document.getElementById('fraisMotif');
 const addFraisBtn = document.getElementById('addFraisBtn');
 const fraisList = document.getElementById('fraisList');
 
+const timelineContainer = document.getElementById('timelineContainer');
+const toastStack = document.getElementById('toastStack');
+
+let activeSorties = [];
+let currentSortieId = null;
+let currentResume = null;
+let currentColis = [];
+let currentOps = [];
+let selectedForRetour = new Set();
 let realtimeChannel = null;
-let isRefreshing = false;
+let refreshTimer = null;
+let previewUrl = null;
+let currentProfileId = null;
+
+const signedUrlCache = new Map();
+
+function formatFcfa(value) {
+  return `${Number(value || 0).toLocaleString('fr-FR')} F`;
+}
+
+function showToast(message) {
+  const toast = document.createElement('div');
+  toast.className = 'point-toast';
+  toast.textContent = message;
+  toastStack.appendChild(toast);
+  gsap.to(toast, { opacity: 1, y: 4, duration: .2 });
+  setTimeout(() => {
+    gsap.to(toast, {
+      opacity: 0,
+      y: -4,
+      duration: .2,
+      onComplete: () => toast.remove()
+    });
+  }, 2600);
+}
+
+function clearPreview() {
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = null;
+  photoInput.value = '';
+  cameraPreview.removeAttribute('src');
+  cameraPreview.style.display = 'none';
+  photoPlaceholder.style.display = 'block';
+}
+
+function setBusy(button, busy, label, busyLabel = 'TRAITEMENT...') {
+  button.disabled = busy;
+  button.textContent = busy ? busyLabel : label;
+}
 
 async function init() {
-    user = await auth.requireRole(['gerant']);
-    if (!user) return;
-    setupUIListeners();
-    await loadSortiesEnCours();
+  const user = await auth.requireRole(['gerant']);
+  if (!user) return;
+
+  currentProfileId = await auth.getCurrentProfileId();
+  setupUI();
+  await loadSortiesEnCours();
 }
 
-function setupUIListeners() {
-    tourneeSelect.addEventListener('change', handleSortieChange);
+function setupUI() {
+  tourneeSelect.addEventListener('change', async () => {
+    const id = tourneeSelect.value;
 
-    actionBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            panels.forEach(p => p.classList.remove('active'));
-            document.getElementById(btn.getAttribute('data-panel')).classList.add('active');
-            actionBtns.forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-outline'); });
-            btn.classList.remove('btn-outline');
-            btn.classList.add('btn-primary');
-        });
-    });
-
-    isPaidCheckbox.addEventListener('change', () => {
-        montantInput.value = isPaidCheckbox.checked ? '0' : '';
-        montantInput.disabled = isPaidCheckbox.checked;
-    });
-
-    photoInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            cameraPreview.src = URL.createObjectURL(file);
-            cameraPreview.style.display = 'block';
-            photoPlaceholder.style.display = 'none';
-        }
-    });
-
-    addColisBtn.addEventListener('click', handleAddColis);
-    confirmRetoursBtn.addEventListener('click', handleConfirmRetours);
-    addFraisBtn.addEventListener('click', handleAddFrais);
-    cloturerBtn.addEventListener('click', handleCloture);
-}
-
-// --- DATA LOADING & REALTIME ---
-
-async function loadSortiesEnCours() {
-    try {
-        const { data, error } = await supabase.from('v_sorties_resume').select('*').eq('statut', 'en_cours');
-        if (error) throw error;
-        activeSorties = data;
-        tourneeSelect.innerHTML = '<option value="">-- Sélectionner une tournée --</option>';
-        data.forEach(s => {
-            const opt = document.createElement('option');
-            opt.value = s.id;
-            opt.textContent = `${s.livreur_nom} (${s.nb_colis_total} colis) - ${formatAmount(s.net_a_encaisser)} F`;
-            tourneeSelect.appendChild(opt);
-        });
-    } catch (err) {
-        console.error(err);
+    if (!id) {
+      resetSelection();
+      return;
     }
-}
 
-async function handleSortieChange(e) {
-    const sId = e.target.value;
-    if (!sId) {
-        pointContent.classList.add('hidden');
-        cleanupRealtime();
-        currentSortieId = null;
-        return;
-    }
-    currentSortieId = sId;
+    currentSortieId = id;
+    noSortieState.classList.add('hidden');
     pointContent.classList.remove('hidden');
+    closeBar.classList.add('visible');
+
     await refreshPointData();
     setupRealtime();
+  });
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const panelId = tab.dataset.panel;
+      const panel = document.getElementById(panelId);
+      const wasOpen = panel.classList.contains('active');
+
+      panels.forEach(p => p.classList.remove('active'));
+      tabs.forEach(b => {
+        b.classList.remove('btn-primary');
+        b.classList.add('btn-outline');
+      });
+
+      if (!wasOpen) {
+        panel.classList.add('active');
+        tab.classList.remove('btn-outline');
+        tab.classList.add('btn-primary');
+      }
+    });
+  });
+
+  isPaidCheckbox.addEventListener('change', () => {
+    montantInput.value = isPaidCheckbox.checked ? '0' : '';
+    montantInput.disabled = isPaidCheckbox.checked;
+  });
+
+  photoInput.addEventListener('change', () => {
+    clearPreview();
+    const file = photoInput.files?.[0];
+    if (!file) return;
+
+    previewUrl = URL.createObjectURL(file);
+    cameraPreview.src = previewUrl;
+    cameraPreview.style.display = 'block';
+    photoPlaceholder.style.display = 'none';
+  });
+
+  addColisBtn.addEventListener('click', handleAddColis);
+  confirmRetoursBtn.addEventListener('click', handleConfirmRetours);
+  addFraisBtn.addEventListener('click', handleAddFrais);
+  cloturerBtn.addEventListener('click', handleCloture);
+}
+
+function resetSelection() {
+  cleanupRealtime();
+  currentSortieId = null;
+  currentResume = null;
+  currentColis = [];
+  currentOps = [];
+  selectedForRetour.clear();
+  pointContent.classList.add('hidden');
+  noSortieState.classList.remove('hidden');
+  closeBar.classList.remove('visible');
+}
+
+async function loadSortiesEnCours() {
+  let query = supabase
+    .from('v_sorties_resume')
+    .select('id, livreur_nom, zone_nom, nb_colis_total, net_a_encaisser, created_at, gerant_id')
+    .eq('statut', 'en_cours')
+    .order('created_at', { ascending: false });
+
+  if (currentProfileId) {
+    query = query.eq('gerant_id', currentProfileId);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error(error);
+    showToast('Impossible de charger les tournées.');
+    return;
+  }
+
+  activeSorties = data || [];
+
+  const previousValue = currentSortieId;
+  tourneeSelect.replaceChildren();
+
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = activeSorties.length
+    ? '-- Choisir une tournée en cours --'
+    : '-- Aucune tournée en cours --';
+  tourneeSelect.appendChild(placeholder);
+
+  activeSorties.forEach(sortie => {
+    const option = document.createElement('option');
+    option.value = sortie.id;
+    option.textContent = `${sortie.livreur_nom} • ${sortie.zone_nom} • ${formatFcfa(sortie.net_a_encaisser)}`;
+    tourneeSelect.appendChild(option);
+  });
+
+  if (previousValue && activeSorties.some(s => s.id === previousValue)) {
+    tourneeSelect.value = previousValue;
+  }
 }
 
 async function refreshPointData() {
-    if (!currentSortieId || isRefreshing) return;
-    isRefreshing = true;
-    try {
-        const [resResume, resColis, resOps] = await Promise.all([
-            supabase.from('v_sorties_resume').select('*').eq('id', currentSortieId).maybeSingle(),
-            supabase.from('colis').select('*').eq('sortie_id', currentSortieId).order('created_at', { ascending: true }),
-            supabase.from('sortie_operations').select('*').eq('sortie_id', currentSortieId).order('created_at', { ascending: true })
-        ]);
-        if (resResume.error) throw resResume.error;
-        currentResume = resResume.data;
-        currentColis = resColis.data || [];
-        currentOps = resOps.data || [];
+  if (!currentSortieId) return;
 
-        if (currentResume.statut === 'cloturee') {
-            handleAlreadyClosed();
-            return;
-        }
+  const [resumeRes, colisRes, opsRes] = await Promise.all([
+    supabase.from('v_sorties_resume').select('*').eq('id', currentSortieId).maybeSingle(),
+    supabase.from('colis').select('*').eq('sortie_id', currentSortieId).order('created_at', { ascending: true }),
+    supabase.from('sortie_operations').select('*').eq('sortie_id', currentSortieId).order('created_at', { ascending: true })
+  ]);
 
-        await renderAll();
-    } catch (err) {
-        console.error(err);
-    } finally {
-        isRefreshing = false;
+  if (resumeRes.error) throw resumeRes.error;
+  if (colisRes.error) throw colisRes.error;
+  if (opsRes.error) throw opsRes.error;
+
+  if (!resumeRes.data || resumeRes.data.statut !== 'en_cours') {
+    showToast('Cette tournée n’est plus disponible.');
+    await loadSortiesEnCours();
+    resetSelection();
+    return;
+  }
+
+  currentResume = resumeRes.data;
+  currentColis = colisRes.data || [];
+  currentOps = opsRes.data || [];
+
+  const validSelectedIds = new Set(
+    currentColis
+      .filter(c => !hasOperation(c.id, 'retour'))
+      .map(c => c.id)
+  );
+  selectedForRetour = new Set([...selectedForRetour].filter(id => validSelectedIds.has(id)));
+
+  renderAll();
+}
+
+function hasOperation(colisId, type) {
+  return currentOps.some(op => op.colis_id === colisId && op.type === type);
+}
+
+function getOperation(colisId, type) {
+  return currentOps.find(op => op.colis_id === colisId && op.type === type) || null;
+}
+
+function renderAll() {
+  renderHeader();
+  renderRetours();
+  renderLivraisons();
+  renderFrais();
+  renderTimeline();
+  renderFinance();
+  renderControl();
+}
+
+function renderHeader() {
+  livreurName.textContent = currentResume.livreur_nom || 'Livreur';
+  zoneName.textContent = currentResume.zone_nom || 'Zone';
+  chargementAmount.textContent = formatFcfa(currentResume.montant_chargement);
+  totalColisCount.textContent = String(Number(currentResume.nb_colis_total || 0));
+  livresCount.textContent = String(Number(currentResume.nb_livres || 0));
+  retoursSignalesCount.textContent = String(Number(currentResume.nb_retour_signale || 0));
+  attenteCount.textContent = String(Number(currentResume.nb_en_attente || 0));
+}
+
+async function photoElement(photoPath) {
+  if (!photoPath) {
+    const empty = document.createElement('div');
+    empty.className = 'point-thumb-empty';
+    empty.textContent = 'Pas de photo';
+    return empty;
+  }
+
+  const img = document.createElement('img');
+  img.className = 'point-thumb';
+  img.alt = 'Colis';
+
+  const url = await getSignedPhotoUrl(photoPath);
+  if (url) img.src = url;
+  else {
+    const empty = document.createElement('div');
+    empty.className = 'point-thumb-empty';
+    empty.textContent = 'Photo indisponible';
+    return empty;
+  }
+
+  return img;
+}
+
+async function renderRetours() {
+  retoursList.replaceChildren();
+
+  const rows = [...currentColis].sort((a, b) => {
+    const aSignal = a.statut_livreur === 'retourne' ? 1 : 0;
+    const bSignal = b.statut_livreur === 'retourne' ? 1 : 0;
+    if (aSignal !== bSignal) return bSignal - aSignal;
+    return new Date(a.created_at) - new Date(b.created_at);
+  });
+
+  const pendingSignaled = rows.filter(c => c.statut_livreur === 'retourne' && !hasOperation(c.id, 'retour')).length;
+  pendingReturnBadge.textContent = `${pendingSignaled} À CONFIRMER`;
+
+  if (!rows.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'Aucun colis dans cette tournée.';
+    retoursList.appendChild(empty);
+    updateReturnSelection();
+    return;
+  }
+
+  for (const colis of rows) {
+    const confirmedOp = getOperation(colis.id, 'retour');
+    const row = document.createElement('div');
+    row.className = 'point-colis-row';
+
+    row.appendChild(await photoElement(colis.photo_path));
+
+    const main = document.createElement('div');
+    main.className = 'point-colis-main';
+
+    const title = document.createElement('div');
+    title.className = 'point-colis-title';
+    title.textContent = Number(colis.valeur) === 0 ? 'PAYÉ — 0 F' : formatFcfa(colis.valeur);
+
+    const meta = document.createElement('div');
+    meta.className = 'point-colis-meta';
+    meta.textContent = colis.commentaire || (colis.source === 'ajout' ? 'Colis ajouté' : 'Colis initial');
+
+    main.append(title, meta);
+
+    if (colis.statut_livreur === 'retourne' && !confirmedOp) {
+      const signal = document.createElement('span');
+      signal.className = 'signal-badge';
+      signal.textContent = 'SIGNALÉ RETOUR PAR LIVREUR';
+      main.appendChild(signal);
     }
-}
 
-async function renderAll() {
-    renderHeaderAndSummary();
-    await Promise.all([
-        renderRetoursPanel(),
-        renderLivraisonsPanel()
-    ]);
-    renderFraisPanel();
-    renderTimeline();
-}
+    row.appendChild(main);
 
-function setupRealtime() {
-    cleanupRealtime();
-    realtimeChannel = supabase.channel(`point_${currentSortieId}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'colis', filter: `sortie_id=eq.${currentSortieId}` }, onRealtimeEvent)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'sortie_operations', filter: `sortie_id=eq.${currentSortieId}` }, onRealtimeEvent)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sorties', filter: `id=eq.${currentSortieId}` }, onRealtimeEvent)
-        .subscribe();
-}
+    const action = document.createElement('div');
 
-function cleanupRealtime() {
-    if (realtimeChannel) {
-        supabase.removeChannel(realtimeChannel);
-        realtimeChannel = null;
+    if (confirmedOp) {
+      const badge = document.createElement('span');
+      badge.className = 'badge badge-danger';
+      badge.textContent = 'CONFIRMÉ';
+      action.appendChild(badge);
+
+      const cancel = document.createElement('button');
+      cancel.className = 'btn btn-outline operation-delete';
+      cancel.style.marginTop = '6px';
+      cancel.textContent = 'Annuler';
+      cancel.addEventListener('click', () => deleteOperation(confirmedOp.id, 'Annuler ce retour confirmé ?'));
+      action.appendChild(cancel);
+    } else {
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'row-check';
+      checkbox.checked = selectedForRetour.has(colis.id);
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) selectedForRetour.add(colis.id);
+        else selectedForRetour.delete(colis.id);
+        updateReturnSelection();
+      });
+      action.appendChild(checkbox);
     }
+
+    row.appendChild(action);
+    retoursList.appendChild(row);
+  }
+
+  updateReturnSelection();
 }
 
-let realtimeTimeout = null;
-function onRealtimeEvent() {
-    if (realtimeTimeout) clearTimeout(realtimeTimeout);
-    realtimeTimeout = setTimeout(() => refreshPointData(), 1000); // debounce
+function updateReturnSelection() {
+  const count = selectedForRetour.size;
+  const selectedAmount = [...selectedForRetour].reduce((sum, id) => {
+    const colis = currentColis.find(c => c.id === id);
+    return sum + Number(colis?.valeur || 0);
+  }, 0);
+
+  retoursSelectionInfo.textContent = count
+    ? `${count} colis • ${formatFcfa(selectedAmount)} à retirer`
+    : '0 colis sélectionné';
+
+  confirmRetoursBtn.disabled = count === 0;
 }
 
-function handleAlreadyClosed() {
-    pointContent.style.opacity = '0.5';
-    pointContent.style.pointerEvents = 'none';
-    alert("Cette tournée vient d'être clôturée.");
-    cleanupRealtime();
-}
+async function renderLivraisons() {
+  livraisonsList.replaceChildren();
 
-// --- PHOTO HELPERS ---
+  const paid = currentColis.filter(c => Number(c.valeur) === 0 && !hasOperation(c.id, 'retour'));
 
-async function getPhotoUrl(path) {
-    if (!path) return '';
-    if (path.startsWith('http') || path.startsWith('blob:')) return path;
-    const now = Date.now();
-    if (signedUrlCache.has(path) && now < signedUrlCache.get(path).expiresAt - 3600000) {
-        return signedUrlCache.get(path).url;
+  if (!paid.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'Aucun colis déjà payé à traiter.';
+    livraisonsList.appendChild(empty);
+    return;
+  }
+
+  for (const colis of paid) {
+    const existing = getOperation(colis.id, 'deduction_livraison');
+    const row = document.createElement('div');
+    row.className = 'point-colis-row';
+
+    row.appendChild(await photoElement(colis.photo_path));
+
+    const main = document.createElement('div');
+    main.className = 'point-colis-main';
+
+    const title = document.createElement('div');
+    title.className = 'point-colis-title';
+    title.textContent = 'PAYÉ — 0 F';
+
+    const meta = document.createElement('div');
+    meta.className = 'point-colis-meta';
+    meta.textContent = colis.commentaire || 'Colis déjà payé';
+
+    main.append(title, meta);
+    row.appendChild(main);
+
+    if (existing) {
+      const box = document.createElement('div');
+      box.style.textAlign = 'right';
+
+      const badge = document.createElement('span');
+      badge.className = 'badge badge-warning';
+      badge.textContent = `-${formatFcfa(existing.montant)}`;
+
+      const cancel = document.createElement('button');
+      cancel.className = 'btn btn-outline operation-delete';
+      cancel.style.marginTop = '6px';
+      cancel.textContent = 'Annuler';
+      cancel.addEventListener('click', () => deleteOperation(existing.id, 'Annuler cette déduction ?'));
+
+      box.append(badge, cancel);
+      row.appendChild(box);
+    } else {
+      const box = document.createElement('div');
+      box.className = 'deduction-box';
+
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.inputMode = 'numeric';
+      input.min = '1';
+      input.className = 'form-control';
+      input.placeholder = 'Montant';
+
+      const button = document.createElement('button');
+      button.className = 'btn btn-primary';
+      button.textContent = 'DÉDUIRE';
+      button.addEventListener('click', () => addDeliveryDeduction(colis.id, input, button));
+
+      box.append(input, button);
+      row.appendChild(box);
     }
-    const { data } = await supabase.storage.from('colis-photos').createSignedUrl(path, 86400);
-    if (data) signedUrlCache.set(path, { url: data.signedUrl, expiresAt: now + 86400000 });
-    return data?.signedUrl || '';
+
+    livraisonsList.appendChild(row);
+  }
 }
 
-// --- RENDERING ---
+function renderFrais() {
+  fraisList.replaceChildren();
+  const fees = currentOps.filter(op => op.type === 'frais_divers');
 
-function renderHeaderAndSummary() {
-    livreurName.textContent = currentResume.livreur_nom;
-    zoneName.textContent = currentResume.zone_nom || 'Sans zone';
-    chargementInitialAmount.textContent = formatAmount(currentResume.montant_initial) + ' F';
-    totalColisCount.textContent = currentResume.nb_colis_total;
+  if (!fees.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.style.padding = '14px 0';
+    empty.textContent = 'Aucun frais enregistré.';
+    fraisList.appendChild(empty);
+    return;
+  }
 
-    recapChargement.textContent = formatAmount(currentResume.montant_initial) + ' F';
-    recapAjouts.textContent = '+' + formatAmount(currentResume.montant_ajouts) + ' F';
-    recapRetours.textContent = '-' + formatAmount(currentResume.montant_retours) + ' F';
-    recapDeductions.textContent = '-' + formatAmount(currentResume.deduction_livraison) + ' F';
-    recapFrais.textContent = '-' + formatAmount(currentResume.frais_divers) + ' F';
-    recapNet.textContent = formatAmount(currentResume.net_a_encaisser) + ' F';
-}
+  fees.forEach(fee => {
+    const row = document.createElement('div');
+    row.className = 'operation-row';
 
-async function renderRetoursPanel() {
-    retoursList.innerHTML = '';
-    selectedForRetour = [];
-    let previewTotal = 0;
+    const main = document.createElement('div');
+    const title = document.createElement('div');
+    title.className = 'operation-title';
+    title.textContent = `-${formatFcfa(fee.montant)}`;
 
-    const sortedColis = [...currentColis].sort((a, b) => (a.statut_livreur === 'retourne' ? -1 : 1));
+    const note = document.createElement('div');
+    note.className = 'operation-note';
+    note.textContent = fee.commentaire || 'Frais divers';
 
-    for (const colis of sortedColis) {
-        const opRetour = currentOps.find(op => op.colis_id === colis.id && op.type === 'retour');
-        const isConfirmed = !!opRetour;
+    main.append(title, note);
 
-        const clone = document.importNode(tplRetourColis.content, true);
-        const checkbox = clone.querySelector('.retour-checkbox');
-        clone.querySelector('.point-colis-photo').src = await getPhotoUrl(colis.photo_path);
-        
-        const montantEl = clone.querySelector('.point-colis-montant');
-        if (Number(colis.valeur) === 0) { montantEl.textContent = 'PAYÉ'; montantEl.classList.add('text-success'); }
-        else montantEl.textContent = formatAmount(colis.valeur) + ' F';
+    const button = document.createElement('button');
+    button.className = 'btn btn-outline operation-delete';
+    button.textContent = 'Supprimer';
+    button.addEventListener('click', () => deleteOperation(fee.id, 'Supprimer ce frais ?'));
 
-        const statutEl = clone.querySelector('.point-colis-statut');
-        statutEl.textContent = colis.statut_livreur === 'retourne' ? 'SIGNALÉ RETOUR' : colis.statut_livreur.toUpperCase();
-        if (colis.statut_livreur === 'retourne') statutEl.classList.add('text-danger');
-        else statutEl.classList.add('text-muted');
-
-        if (isConfirmed) {
-            checkbox.classList.add('hidden');
-            clone.querySelector('.point-colis-deja-retourne').classList.remove('hidden');
-            const btnAnnuler = clone.querySelector('.point-btn-annuler-retour');
-            btnAnnuler.classList.remove('hidden');
-            btnAnnuler.onclick = (e) => { e.preventDefault(); handleAnnulerOp(opRetour.id); };
-        } else {
-            checkbox.value = colis.id;
-            if (colis.statut_livreur === 'retourne') {
-                checkbox.checked = true;
-                selectedForRetour.push(colis.id);
-                previewTotal += Number(colis.valeur);
-            }
-            checkbox.addEventListener('change', () => {
-                if (checkbox.checked) { selectedForRetour.push(colis.id); previewTotal += Number(colis.valeur); }
-                else { selectedForRetour = selectedForRetour.filter(id => id !== colis.id); previewTotal -= Number(colis.valeur); }
-                updateRetoursPreview(previewTotal);
-            });
-        }
-        retoursList.appendChild(clone);
-    }
-    updateRetoursPreview(previewTotal);
-}
-
-function updateRetoursPreview(total) {
-    retoursSelectionInfo.textContent = `${selectedForRetour.length} colis sélectionné(s) - TOTAL RETOUR : ${total.toLocaleString('fr-FR')} F`;
-    confirmRetoursBtn.disabled = selectedForRetour.length === 0;
-}
-
-async function renderLivraisonsPanel() {
-    livraisonsList.innerHTML = '';
-    const colisPayes = currentColis.filter(c => Number(c.valeur) === 0);
-    
-    for (const colis of colisPayes) {
-        const opDed = currentOps.find(op => op.colis_id === colis.id && op.type === 'deduction_livraison');
-        const clone = document.importNode(tplLivraisonColis.content, true);
-        clone.querySelector('.point-colis-photo').src = await getPhotoUrl(colis.photo_path);
-        
-        if (opDed) {
-            clone.querySelector('.point-deduction-form').classList.add('hidden');
-            const existDiv = clone.querySelector('.point-deduction-exist');
-            existDiv.classList.remove('hidden');
-            existDiv.querySelector('.point-deduction-montant').textContent = `DÉDUIT: ${opDed.montant} F`;
-            existDiv.querySelector('.point-btn-annuler-deduction').onclick = () => handleAnnulerOp(opDed.id);
-        } else {
-            const input = clone.querySelector('.point-deduction-input');
-            clone.querySelector('.point-btn-deduire').onclick = () => handleDeduireLivraison(colis.id, input.value);
-        }
-        livraisonsList.appendChild(clone);
-    }
-}
-
-function renderFraisPanel() {
-    fraisList.innerHTML = '';
-    const frais = currentOps.filter(op => op.type === 'frais_divers');
-    frais.forEach(f => {
-        const div = document.createElement('div');
-        div.className = 'flex justify-between items-center py-2 border-bottom';
-        div.style.borderBottom = '1px solid var(--border)';
-        div.innerHTML = `
-            <div>
-                <div class="font-bold">${formatAmount(f.montant)} F</div>
-                <div class="text-muted">${escapeHtml(f.commentaire || '')}</div>
-            </div>
-            <button class="btn btn-outline btn-sm text-danger" style="padding: 2px 8px;" onclick="handleAnnulerOp('${f.id}')">Suppr.</button>
-        `;
-        fraisList.appendChild(div);
-    });
+    row.append(main, button);
+    fraisList.appendChild(row);
+  });
 }
 
 function renderTimeline() {
-    timelineContainer.innerHTML = '';
-    const events = [];
-    events.push({ time: new Date(currentResume.created_at), type: 'DÉPART', desc: `${currentColis.filter(c => c.source === 'initial').length} colis initiaux`, amount: currentResume.montant_initial, color: 'var(--text-main)' });
-    
-    currentColis.filter(c => c.source === 'ajout').forEach(c => events.push({ time: new Date(c.created_at), type: 'AJOUT', desc: `Colis ${Number(c.valeur) === 0 ? 'PAYÉ' : 'supplémentaire'}`, amount: Number(c.valeur), color: 'var(--success)' }));
-    currentOps.forEach(op => {
-        if (op.type === 'retour') events.push({ time: new Date(op.created_at), type: 'RETOUR CONFIRMÉ', desc: 'Déduction du net', amount: -Number(op.montant), color: 'var(--danger)' });
-        else if (op.type === 'deduction_livraison') events.push({ time: new Date(op.created_at), type: 'LIVRAISON DÉDUITE', desc: 'Frais sur colis payé', amount: -Number(op.montant), color: 'var(--warning)' });
-        else if (op.type === 'frais_divers') events.push({ time: new Date(op.created_at), type: 'FRAIS DIVERS', desc: op.commentaire || '', amount: -Number(op.montant), color: 'var(--primary)' });
-    });
+  timelineContainer.replaceChildren();
 
-    events.sort((a, b) => a.time - b.time).forEach(ev => {
-        const div = document.createElement('div');
-        div.className = 'timeline-item';
-        const sign = ev.amount > 0 && ev.type !== 'DÉPART' ? '+' : '';
-        div.innerHTML = `
-            <div class="timeline-time">${ev.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
-            <div class="flex justify-between items-center mt-1">
-                <div><div class="timeline-content" style="color: ${ev.color};">${escapeHtml(ev.type)}</div><div class="text-sm text-muted">${escapeHtml(ev.desc)}</div></div>
-                <div class="timeline-amount" style="color: ${ev.color};">${ev.amount === 0 ? '0 F' : `${sign}${formatAmount(ev.amount)} F`}</div>
-            </div>`;
-        timelineContainer.appendChild(div);
+  const events = [{
+    time: new Date(currentResume.created_at),
+    type: 'DÉPART',
+    desc: `${Number(currentResume.nb_colis_initial || 0)} colis initiaux`,
+    amount: Number(currentResume.montant_initial || 0),
+    tone: 'var(--text-main)'
+  }];
+
+  currentColis
+    .filter(c => c.source === 'ajout')
+    .forEach(c => events.push({
+      time: new Date(c.created_at),
+      type: 'AJOUT',
+      desc: c.commentaire || 'Colis supplémentaire',
+      amount: Number(c.valeur || 0),
+      tone: 'var(--success)'
+    }));
+
+  currentOps.forEach(op => {
+    if (op.type === 'retour') {
+      events.push({
+        time: new Date(op.created_at),
+        type: 'RETOUR CONFIRMÉ',
+        desc: op.commentaire || 'Retour retiré du net',
+        amount: -Number(op.montant || 0),
+        tone: 'var(--danger)'
+      });
+    } else if (op.type === 'deduction_livraison') {
+      events.push({
+        time: new Date(op.created_at),
+        type: 'LIVRAISON DÉDUITE',
+        desc: op.commentaire || 'Colis déjà payé',
+        amount: -Number(op.montant || 0),
+        tone: 'var(--warning)'
+      });
+    } else if (op.type === 'frais_divers') {
+      events.push({
+        time: new Date(op.created_at),
+        type: 'FRAIS',
+        desc: op.commentaire || 'Frais divers',
+        amount: -Number(op.montant || 0),
+        tone: 'var(--danger)'
+      });
+    }
+  });
+
+  events
+    .sort((a, b) => a.time - b.time)
+    .forEach(event => {
+      const row = document.createElement('div');
+      row.className = 'timeline-row';
+
+      const top = document.createElement('div');
+      top.className = 'timeline-top';
+
+      const type = document.createElement('div');
+      type.className = 'timeline-type';
+      type.style.color = event.tone;
+      type.textContent = event.type;
+
+      const time = document.createElement('div');
+      time.className = 'timeline-time';
+      time.textContent = event.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+      top.append(type, time);
+
+      const desc = document.createElement('div');
+      desc.className = 'timeline-desc';
+      desc.textContent = event.desc;
+
+      const amount = document.createElement('div');
+      amount.className = 'timeline-amount';
+      amount.style.color = event.tone;
+      const sign = event.amount > 0 && event.type !== 'DÉPART' ? '+' : '';
+      amount.textContent = `${sign}${formatFcfa(event.amount)}`;
+
+      row.append(top, desc, amount);
+      timelineContainer.appendChild(row);
     });
 }
 
-// --- ACTIONS ---
+function renderFinance() {
+  recapChargement.textContent = formatFcfa(currentResume.montant_initial);
+  recapAjouts.textContent = `+${formatFcfa(currentResume.montant_ajouts)}`;
+  recapRetours.textContent = `-${formatFcfa(currentResume.montant_retours)}`;
+  recapDeductions.textContent = `-${formatFcfa(currentResume.deduction_livraison)}`;
+  recapFrais.textContent = `-${formatFcfa(currentResume.frais_divers)}`;
+  recapNet.textContent = formatFcfa(currentResume.net_a_encaisser);
+  closeBarNet.textContent = formatFcfa(currentResume.net_a_encaisser);
+}
+
+function closureIssues() {
+  const waiting = currentColis.filter(c => c.statut_livreur === 'en_attente');
+  const unconfirmedReturns = currentColis.filter(
+    c => c.statut_livreur === 'retourne' && !hasOperation(c.id, 'retour')
+  );
+
+  const issues = [];
+
+  if (waiting.length) {
+    issues.push(`${waiting.length} colis encore en attente de décision du livreur.`);
+  }
+
+  if (unconfirmedReturns.length) {
+    issues.push(`${unconfirmedReturns.length} retour(s) signalé(s) mais pas encore confirmé(s).`);
+  }
+
+  if (!currentColis.length) {
+    issues.push('La tournée ne contient aucun colis.');
+  }
+
+  return issues;
+}
+
+function renderControl() {
+  const issues = closureIssues();
+  controlList.replaceChildren();
+
+  if (!issues.length) {
+    controlCard.classList.add('ok');
+    controlTitle.textContent = 'Contrôle terminé';
+    const line = document.createElement('div');
+    line.textContent = 'Tous les colis sont traités et les retours signalés sont confirmés.';
+    controlList.appendChild(line);
+    cloturerBtn.disabled = false;
+    return;
+  }
+
+  controlCard.classList.remove('ok');
+  controlTitle.textContent = 'Clôture impossible pour le moment';
+
+  issues.forEach(issue => {
+    const line = document.createElement('div');
+    line.textContent = `• ${issue}`;
+    controlList.appendChild(line);
+  });
+
+  cloturerBtn.disabled = true;
+}
 
 async function handleAddColis() {
-    const rawFile = photoInput.files[0];
-    const montant = montantInput.value.trim();
-    if (!rawFile || montant === '') return alert("Photo et montant requis.");
-    addColisBtn.disabled = true;
-    addColisBtn.textContent = "TRAITEMENT...";
+  const rawFile = photoInput.files?.[0];
+  const rawAmount = montantInput.value.trim();
+  const value = Number(rawAmount);
 
-    try {
-        const compressedFile = await compressImage(rawFile);
-        const colisId = crypto.randomUUID();
-        const photoPath = `sorties/${currentSortieId}/${colisId}.jpg`;
-        const { error: uploadErr } = await supabase.storage.from('colis-photos').upload(photoPath, compressedFile);
-        if (uploadErr) throw uploadErr;
+  if (!rawFile) {
+    showToast('La photo du colis est obligatoire.');
+    return;
+  }
 
-        const { error: insertErr } = await supabase.from('colis').insert([{
-            id: colisId, sortie_id: currentSortieId, photo_path: photoPath, valeur: Number(montant), commentaire: noteInput.value.trim(), statut_livreur: 'en_attente', source: 'ajout'
-        }]);
+  if (rawAmount === '' || !Number.isFinite(value) || value < 0) {
+    showToast('Montant invalide.');
+    return;
+  }
 
-        if (insertErr) {
-            await supabase.storage.from('colis-photos').remove([photoPath]);
-            throw insertErr;
-        }
+  setBusy(addColisBtn, true, 'AJOUTER À LA TOURNÉE');
 
-        photoInput.value = ''; cameraPreview.style.display = 'none'; photoPlaceholder.style.display = 'block';
-        montantInput.value = ''; isPaidCheckbox.checked = false; montantInput.disabled = false; noteInput.value = '';
-        await refreshPointData();
-    } catch (err) {
-        console.error(err); alert("Erreur lors de l'ajout.");
-    } finally {
-        addColisBtn.disabled = false; addColisBtn.textContent = "AJOUTER LE COLIS";
+  let photoPath = null;
+
+  try {
+    const compressed = await compressImage(rawFile);
+    const colisId = crypto.randomUUID();
+    photoPath = `sorties/${currentSortieId}/${colisId}.jpg`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('colis-photos')
+      .upload(photoPath, compressed, { upsert: false });
+
+    if (uploadError) throw uploadError;
+
+    const { error: insertError } = await supabase
+      .from('colis')
+      .insert({
+        id: colisId,
+        sortie_id: currentSortieId,
+        photo_path: photoPath,
+        valeur: value,
+        commentaire: noteInput.value.trim() || null,
+        statut_livreur: 'en_attente',
+        source: 'ajout'
+      });
+
+    if (insertError) {
+      await supabase.storage.from('colis-photos').remove([photoPath]);
+      throw insertError;
     }
+
+    clearPreview();
+    montantInput.value = '';
+    montantInput.disabled = false;
+    isPaidCheckbox.checked = false;
+    noteInput.value = '';
+
+    showToast('Colis ajouté à la tournée.');
+    await refreshPointData();
+  } catch (err) {
+    console.error(err);
+    if (photoPath) {
+      try { await supabase.storage.from('colis-photos').remove([photoPath]); } catch {}
+    }
+    showToast('Impossible d’ajouter ce colis.');
+  } finally {
+    setBusy(addColisBtn, false, 'AJOUTER À LA TOURNÉE');
+  }
 }
 
 async function handleConfirmRetours() {
-    if (selectedForRetour.length === 0) return;
-    confirmRetoursBtn.disabled = true;
+  const ids = [...selectedForRetour];
+  if (!ids.length) return;
 
-    try {
-        const newOps = [];
-        for (const cId of selectedForRetour) {
-            const colis = currentColis.find(c => c.id === cId);
-            // Vérifier sécurité frontend
-            if (colis && colis.sortie_id === currentSortieId && !currentOps.find(op => op.colis_id === cId && op.type === 'retour')) {
-                newOps.push({ sortie_id: currentSortieId, colis_id: cId, type: 'retour', montant: colis.valeur, quantite: 1, commentaire: 'Retour confirmé' });
-            }
-        }
-        
-        if (newOps.length > 0) {
-            const { error } = await supabase.from('sortie_operations').insert(newOps);
-            if (error) {
-                if (error.code === '23505') alert("Un ou plusieurs retours avaient déjà été confirmés. Les données ont été actualisées.");
-                else throw error;
-            }
-        }
-        await refreshPointData();
-    } catch (err) {
-        console.error(err); alert("Erreur d'enregistrement.");
-    } finally {
-        confirmRetoursBtn.disabled = false;
+  setBusy(confirmRetoursBtn, true, 'CONFIRMER LA SÉLECTION', 'CONFIRMATION...');
+
+  try {
+    const operations = ids
+      .map(id => currentColis.find(c => c.id === id))
+      .filter(Boolean)
+      .filter(c => !hasOperation(c.id, 'retour'))
+      .map(c => ({
+        sortie_id: currentSortieId,
+        colis_id: c.id,
+        type: 'retour',
+        montant: Number(c.valeur || 0),
+        quantite: 1,
+        commentaire: c.statut_livreur === 'retourne'
+          ? 'Retour signalé par le livreur puis confirmé par le Gérant'
+          : 'Retour confirmé manuellement par le Gérant'
+      }));
+
+    if (!operations.length) {
+      showToast('Aucun nouveau retour à confirmer.');
+      return;
     }
+
+    const { error } = await supabase.from('sortie_operations').insert(operations);
+    if (error) throw error;
+
+    selectedForRetour.clear();
+    showToast(`${operations.length} retour(s) confirmé(s).`);
+    await refreshPointData();
+  } catch (err) {
+    console.error(err);
+    showToast('Impossible de confirmer les retours.');
+  } finally {
+    setBusy(confirmRetoursBtn, false, 'CONFIRMER LA SÉLECTION');
+    updateReturnSelection();
+  }
 }
 
-async function handleDeduireLivraison(colisId, montantStr) {
-    const montant = Number(montantStr);
-    if (!montant || montant <= 0) return alert("Montant invalide.");
-    
-    // Vérif front-end de la double déduction
-    if (currentOps.find(op => op.colis_id === colisId && op.type === 'deduction_livraison')) {
-        return alert("Cette livraison a déjà été déduite.");
-    }
+async function addDeliveryDeduction(colisId, input, button) {
+  const value = Number(input.value);
+  if (!Number.isFinite(value) || value <= 0) {
+    showToast('Montant de livraison invalide.');
+    return;
+  }
 
-    try {
-        const { error } = await supabase.from('sortie_operations').insert([{
-            sortie_id: currentSortieId, colis_id: colisId, type: 'deduction_livraison', montant, quantite: 1, commentaire: 'Frais sur colis payé'
-        }]);
-        if (error) {
-            if (error.code === '23505') alert("Cette livraison a déjà été déduite."); // Unique violation catch
-            else throw error;
-        }
-        await refreshPointData();
-    } catch (err) {
-        console.error(err); alert("Erreur d'enregistrement.");
-    }
+  setBusy(button, true, 'DÉDUIRE');
+
+  try {
+    const { error } = await supabase.from('sortie_operations').insert({
+      sortie_id: currentSortieId,
+      colis_id: colisId,
+      type: 'deduction_livraison',
+      montant: value,
+      quantite: 1,
+      commentaire: 'Frais de livraison sur colis déjà payé'
+    });
+
+    if (error) throw error;
+
+    showToast('Livraison déduite.');
+    await refreshPointData();
+  } catch (err) {
+    console.error(err);
+    showToast('Impossible d’enregistrer cette déduction.');
+  } finally {
+    setBusy(button, false, 'DÉDUIRE');
+  }
 }
 
 async function handleAddFrais() {
-    const montant = Number(fraisMontant.value);
-    const motif = fraisMotif.value.trim();
-    if (!montant || montant <= 0 || !motif) return alert("Montant et motif requis.");
-    try {
-        const { error } = await supabase.from('sortie_operations').insert([{ sortie_id: currentSortieId, type: 'frais_divers', montant, quantite: 1, commentaire: motif }]);
-        if (error) throw error;
-        fraisMontant.value = ''; fraisMotif.value = '';
-        await refreshPointData();
-    } catch (err) {
-        console.error(err); alert("Erreur d'enregistrement.");
-    }
+  const value = Number(fraisMontant.value);
+  const reason = fraisMotif.value.trim();
+
+  if (!Number.isFinite(value) || value <= 0 || !reason) {
+    showToast('Montant et motif sont obligatoires.');
+    return;
+  }
+
+  setBusy(addFraisBtn, true, 'ENREGISTRER LE FRAIS');
+
+  try {
+    const { error } = await supabase.from('sortie_operations').insert({
+      sortie_id: currentSortieId,
+      type: 'frais_divers',
+      montant: value,
+      quantite: 1,
+      commentaire: reason
+    });
+
+    if (error) throw error;
+
+    fraisMontant.value = '';
+    fraisMotif.value = '';
+    showToast('Frais enregistré.');
+    await refreshPointData();
+  } catch (err) {
+    console.error(err);
+    showToast('Impossible d’enregistrer ce frais.');
+  } finally {
+    setBusy(addFraisBtn, false, 'ENREGISTRER LE FRAIS');
+  }
 }
 
-// Global handler pour annuler/supprimer une op
-window.handleAnnulerOp = async function(opId) {
-    if (currentResume.statut !== 'en_cours') return;
-    try {
-        const { error } = await supabase.from('sortie_operations').delete().eq('id', opId);
-        if (error) throw error;
-        await refreshPointData();
-    } catch (err) {
-        console.error(err); alert("Erreur lors de la suppression.");
-    }
-};
+async function deleteOperation(operationId, question) {
+  if (!window.confirm(question)) return;
+
+  try {
+    const { error } = await supabase
+      .from('sortie_operations')
+      .delete()
+      .eq('id', operationId);
+
+    if (error) throw error;
+
+    showToast('Opération annulée.');
+    await refreshPointData();
+  } catch (err) {
+    console.error(err);
+    showToast('Impossible d’annuler cette opération.');
+  }
+}
 
 async function handleCloture() {
-    if (!confirm("Clôturer la tournée ? Le net encaissé sera figé à " + formatAmount(currentResume.net_a_encaisser) + " F.")) return;
-    cloturerBtn.disabled = true;
-    cloturerBtn.textContent = "CLÔTURE...";
+  const issues = closureIssues();
+
+  if (issues.length) {
+    renderControl();
+    showToast('Terminez le contrôle avant de clôturer.');
+    return;
+  }
+
+  const net = formatFcfa(currentResume.net_a_encaisser);
+  const ok = window.confirm(
+    `Clôturer définitivement la tournée de ${currentResume.livreur_nom} ?\n\nNet à encaisser : ${net}\n\nAprès validation, la tournée passera dans les archives.`
+  );
+
+  if (!ok) return;
+
+  setBusy(cloturerBtn, true, 'VALIDER L\'ENCAISSEMENT', 'CLÔTURE...');
+
+  try {
+    const { error } = await supabase.rpc('cloturer_sortie', {
+      p_sortie_id: currentSortieId
+    });
+
+    if (error) throw error;
+
+    showToast(`Tournée clôturée • ${net}`);
+    cleanupRealtime();
+    await loadSortiesEnCours();
+    tourneeSelect.value = '';
+    resetSelection();
+  } catch (err) {
+    console.error(err);
+    const message = String(err?.message || '');
+    if (message.includes('attente')) showToast('Des colis sont encore en attente.');
+    else if (message.includes('retour')) showToast('Un retour signalé doit être confirmé.');
+    else if (message.includes('déjà clôturée')) showToast('Cette tournée est déjà clôturée.');
+    else showToast('Impossible de clôturer cette tournée.');
+    cloturerBtn.disabled = false;
+    cloturerBtn.textContent = 'VALIDER L\'ENCAISSEMENT';
+  }
+}
+
+async function getSignedPhotoUrl(path) {
+  if (!path) return null;
+
+  const now = Date.now();
+  const cached = signedUrlCache.get(path);
+  if (cached && now < cached.expiresAt - 300000) return cached.url;
+
+  const { data, error } = await supabase.storage
+    .from('colis-photos')
+    .createSignedUrl(path, 86400);
+
+  if (error || !data?.signedUrl) return null;
+
+  signedUrlCache.set(path, {
+    url: data.signedUrl,
+    expiresAt: now + 86400000
+  });
+
+  return data.signedUrl;
+}
+
+function setupRealtime() {
+  cleanupRealtime();
+  if (!currentSortieId) return;
+
+  realtimeChannel = supabase
+    .channel(`point-${currentSortieId}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'colis', filter: `sortie_id=eq.${currentSortieId}` }, scheduleRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'sortie_operations', filter: `sortie_id=eq.${currentSortieId}` }, scheduleRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'sorties', filter: `id=eq.${currentSortieId}` }, scheduleRefresh)
+    .subscribe();
+}
+
+function scheduleRefresh() {
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(async () => {
     try {
-        const { error } = await supabase.rpc('cloturer_sortie', { p_sortie_id: currentSortieId });
-        if (error) throw error;
-        alert(`TOURNÉE CLÔTURÉE\n${formatAmount(currentResume.net_a_encaisser)} F encaissés`);
-        cleanupRealtime();
-        currentSortieId = null;
-        currentResume = null;
-        currentColis = [];
-        currentOps = [];
-        pointContent.classList.add('hidden');
-        tourneeSelect.value = '';
-        await loadSortiesEnCours();
+      await refreshPointData();
+      await loadSortiesEnCours();
     } catch (err) {
-        console.error(err);
-        if (err.message && err.message.includes('déjà clôturée')) alert("Cette tournée a déjà été clôturée par ailleurs.");
-        else alert("Erreur lors de la clôture.");
-        cloturerBtn.disabled = false;
-        cloturerBtn.textContent = "VALIDER L'ENCAISSEMENT";
+      console.error('Realtime refresh:', err);
     }
+  }, 300);
+}
+
+function cleanupRealtime() {
+  clearTimeout(refreshTimer);
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);
