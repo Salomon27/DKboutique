@@ -103,6 +103,8 @@ begin
    where sortie_id = v_sortie.id and type = 'cloture';
  end if;
 
+ insert into dk_private.photo_cleanup(path)
+ values(v_colis.photo_path) on conflict(path) do nothing;
  insert into dk_private.colis_corrections
     (colis_id,sortie_id,photo_path,valeur,motif,statut_sortie,
      montant_avant,montant_apres,colis_avant,colis_apres,auteur_profile_id)
@@ -163,6 +165,7 @@ begin
  end if;
  update dk_private.colis_corrections set photo_supprimee_at=now()
  where colis_id=p_colis_id;
+ delete from dk_private.photo_cleanup where path=v_row.photo_path;
  return jsonb_build_object('ok',true);
 end;
 $$;
