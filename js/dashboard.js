@@ -1,5 +1,6 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
+import { enableAutoSync } from './auto-sync.js';
 import { formatFcfa, formatDate, createBadge, createEmptyState } from './page-utils.js';
 
 const pendingMoney = document.getElementById('pendingMoney');
@@ -102,6 +103,7 @@ async function init() {
   const user = await auth.requireRole(['gerant']);
   if (!user) return;
 
+  enableAutoSync(() => loadStats(), { tables: ['sorties', 'colis', 'sortie_operations'], intervalMs: 30000 });
   try { await loadStats(); }
   catch (err) {
     console.error(err);
