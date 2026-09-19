@@ -17,13 +17,26 @@ function localDayBounds(date = new Date()) {
 }
 
 async function loadStats() {
-  const [allRes, recentRes] = await Promise.all([
-    supabase.from('v_sorties_resume').select('*').order('created_at', { ascending: false }).limit(500),
-    supabase.from('v_sorties_resume')
-      .select('id, livreur_nom, zone_nom, statut, created_at, closed_at, nb_colis_total, net_a_encaisser, montant_final')
-      .order('created_at', { ascending: false })
-      .limit(10)
-  ]);
+  const profileId = await auth.getCurrentProfileId();
+
+  let allQuery = supabase
+    .from('v_sorties_resume')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(500);
+
+  let recentQuery = supabase
+    .from('v_sorties_resume')
+    .select('id, livreur_nom, zone_nom, statut, created_at, closed_at, nb_colis_total, net_a_encaisser, montant_final, gerant_id')
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (profileId) {
+    allQuery = allQuery.eq('gerant_id', profileId);
+    recentQuery = recentQuery.eq('gerant_id', profileId);
+  }
+
+  const [allRes, recentRes] = await Promise.all([allQuery, recentQuery]);
 
   if (allRes.error) throw allRes.error;
   if (recentRes.error) throw recentRes.error;
