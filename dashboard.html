@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Statistiques - DK Boutique</title>
+  <meta name="theme-color" content="#F4F7FB">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1 class="header-title" style="margin:0;">STATISTIQUES</h1>
+      <div class="text-sm text-muted">Vue opérationnelle du Gérant</div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="stats-grid mb-4">
+      <div class="stat-card"><div class="stat-label">Argent dehors</div><div class="stat-value" id="pendingMoney">0 F</div></div>
+      <div class="stat-card"><div class="stat-label">Tournées actives</div><div class="stat-value" id="activeTours">0</div></div>
+      <div class="stat-card"><div class="stat-label">Encaissement du jour</div><div class="stat-value" id="todayCollected">0 F</div></div>
+      <div class="stat-card"><div class="stat-label">Taux livré</div><div class="stat-value" id="successRate">0%</div></div>
+    </section>
+
+    <section class="card mb-4">
+      <h2>Activité récente</h2>
+      <div id="recentList"></div>
+    </section>
+
+    <section class="card">
+      <div class="page-title-row">
+        <div>
+          <h2 style="margin:0;">Raccourcis</h2>
+          <div class="text-sm text-muted">Accès rapide aux modules</div>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <a class="btn btn-outline" href="dispatch.html">Nouveau départ</a>
+        <a class="btn btn-outline" href="point.html">Faire le point</a>
+        <a class="btn btn-outline" href="livreurs.html">Équipe</a>
+        <a class="btn btn-outline" href="bilan-journee.html">Bilan du jour</a>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="js/dashboard.js?v=1"></script>
+  <script type="module" src="js/navigation.js?v=1"></script>
+</body>
+</html>

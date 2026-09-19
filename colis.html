@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Registre colis - DK Boutique</title>
+  <meta name="theme-color" content="#F4F7FB">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .parcel-row-img { width:58px; height:58px; border-radius:12px; object-fit:cover; background:var(--border); flex:none; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1 class="header-title" style="margin:0;">REGISTRE COLIS</h1>
+      <div class="text-sm text-muted">Vue globale des colis</div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <div class="toolbar">
+      <input id="searchInput" class="form-control" placeholder="Livreur, zone ou note">
+      <select id="statusFilter" class="form-control">
+        <option value="">Tous les statuts</option>
+        <option value="en_attente">En attente</option>
+        <option value="livre">Livré</option>
+        <option value="retourne">Retour signalé</option>
+      </select>
+      <select id="sourceFilter" class="form-control">
+        <option value="">Toutes les sources</option>
+        <option value="initial">Initial</option>
+        <option value="ajout">Ajout</option>
+      </select>
+    </div>
+
+    <section class="stats-grid mb-4">
+      <div class="stat-card"><div class="stat-label">Affichés</div><div class="stat-value" id="statCount">0</div></div>
+      <div class="stat-card"><div class="stat-label">Valeur</div><div class="stat-value" id="statValue">0 F</div></div>
+      <div class="stat-card"><div class="stat-label">Livrés</div><div class="stat-value" id="statDelivered">0</div></div>
+      <div class="stat-card"><div class="stat-label">Retours signalés</div><div class="stat-value" id="statReturned">0</div></div>
+    </section>
+
+    <section class="card">
+      <div id="parcelList"></div>
+    </section>
+  </main>
+
+  <script type="module" src="js/colis.js?v=1"></script>
+  <script type="module" src="js/navigation.js?v=1"></script>
+</body>
+</html>

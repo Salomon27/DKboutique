@@ -2,8 +2,6 @@ import { auth } from './auth.js';
 import { supabase } from './config.js';
 import { compressImage } from './colis-utils.js';
 
-auth.requireRole(['gerant']);
-
 // Elements
 const livreurSelect = document.getElementById('livreurSelect');
 const zoneContainer = document.getElementById('zoneContainer');
@@ -39,6 +37,9 @@ let pendingColis = [];
 let activeTourneeId = null;
 
 async function init() {
+    const user = await auth.requireRole(['gerant']);
+    if (!user) return;
+
     await loadLivreurs();
     livreurSelect.addEventListener('change', handleLivreurChange);
     photoInput.addEventListener('change', handlePhotoChange);
@@ -159,6 +160,12 @@ async function addLocalColis() {
         return;
     }
 
+    const valeur = Number(montant);
+    if (!Number.isFinite(valeur) || valeur < 0) {
+        alert("Le montant doit être un nombre positif ou 0 pour un colis payé.");
+        return;
+    }
+
     addColisBtn.disabled = true;
     addColisBtn.textContent = "COMPRESSION...";
 
@@ -169,8 +176,10 @@ async function addLocalColis() {
             id: crypto.randomUUID(), // UUID définitif généré côté client
             file: compressedFile,
             previewUrl: cameraPreview.src,
-            valeur: Number(montant),
-            commentaire: note
+            valeur,
+            commentaire: note,
+            status: 'pending',
+            source: null
         };
 
         pendingColis.push(colis);
@@ -272,14 +281,16 @@ async function validateAllColis() {
     progressStatusContainer.classList.remove('hidden');
     progressContainer.style.display = 'block';
     let successCount = 0;
-    const totalCount = pendingColis.length;
+    const pendingToProcess = pendingColis.filter(c => c.status !== 'saved');
+    const totalCount = pendingToProcess.length;
     progressCount.textContent = `0 / ${totalCount}`;
     progressBar.style.width = '0%';
 
     try {
-        const user = await auth.requireRole(['gerant']);
-        let gerantProfile = await supabase.from('profiles').select('id').eq('auth_user_id', user.id).maybeSingle();
-        let gerantId = gerantProfile.data?.id || null;
+        const gerantId = await auth.getCurrentProfileId();
+        if (!gerantId) {
+            throw new Error("Profil Gérant introuvable.");
+        }
 
         let currentSortieId = activeTourneeId;
         let createdNewSortie = false;
@@ -318,10 +329,15 @@ async function validateAllColis() {
             }
         }
 
-        const sourceTag = createdNewSortie ? 'initial' : 'ajout';
+        activeTourneeId = currentSortieId;
+
+        const defaultSource = createdNewSortie ? 'initial' : 'ajout';
+        pendingToProcess.forEach(colis => {
+            if (!colis.source) colis.source = defaultSource;
+        });
 
         // Etape 2: Stratégie de compensation pour chaque colis
-        for (const colis of pendingColis) {
+        for (const colis of pendingToProcess) {
             const photoPath = `sorties/${currentSortieId}/${colis.id}.jpg`;
             
             // A. Upload Storage
@@ -341,7 +357,7 @@ async function validateAllColis() {
                     valeur: colis.valeur,
                     commentaire: colis.commentaire,
                     statut_livreur: 'en_attente',
-                    source: sourceTag
+                    source: colis.source
                 }]);
                 
             if (insertError) {
@@ -349,6 +365,8 @@ async function validateAllColis() {
                 await supabase.storage.from('colis-photos').remove([photoPath]);
                 throw insertError;
             }
+
+            colis.status = 'saved';
 
             // Mise à jour de la progression
             successCount++;
@@ -380,7 +398,12 @@ async function validateAllColis() {
         console.error("Erreur lors de la validation:", err);
         alert("Une erreur est survenue lors de l'enregistrement. Les colis non confirmés sont restés dans votre panier.");
         
-        // Reset bouton mais garde le panier intact
+        // Garder uniquement les colis qui n'ont pas encore été confirmés.
+        // Ainsi RÉESSAYER ne renvoie jamais une photo/UUID déjà enregistré.
+        pendingColis = pendingColis.filter(c => c.status !== 'saved');
+        renderPendingColis();
+
+        // Reset bouton mais garde uniquement les colis non confirmés
         validateAllBtn.disabled = false;
         validateAllBtn.textContent = "RÉESSAYER";
         progressText.textContent = "Erreur...";

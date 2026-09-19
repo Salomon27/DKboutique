@@ -1,8 +1,6 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
 
-auth.requireRole(['livreur']);
-
 // DOM
 const logoutBtn = document.getElementById('logoutBtn');
 const loader = document.getElementById('loader');
@@ -74,14 +72,18 @@ function showToast(message) {
 
 async function loadApp() {
     try {
-        const { data: livreur } = await supabase
+        currentLivreurId = await auth.getCurrentLivreurId();
+        if (!currentLivreurId) throw new Error("Session livreur introuvable.");
+
+        const { data: livreur, error } = await supabase
             .from('livreurs')
             .select('id, zones(nom)')
-            .eq('auth_user_id', currentUser.id)
+            .eq('id', currentLivreurId)
             .single();
-            
+
+        if (error) throw error;
         if (!livreur) throw new Error("Profil livreur non trouvé.");
-        currentLivreurId = livreur.id;
+
         zoneName.textContent = livreur.zones?.nom || 'Zone inconnue';
 
         await loadActiveSortie();
@@ -201,6 +203,12 @@ async function getSignedUrl(photoPath) {
     return data.signedUrl;
 }
 
+function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = String(value ?? '');
+    return div.innerHTML;
+}
+
 async function renderColisCard(colis, animate = false) {
     let existingCard = document.getElementById(`card-${colis.id}`);
     const isNew = !existingCard;
@@ -232,7 +240,7 @@ async function renderColisCard(colis, animate = false) {
                 <span class="font-bold" style="font-size: 1.5rem; color: ${priceColor};">${priceText}</span>
                 <span class="badge hidden" id="badge-${colis.id}"></span>
             </div>
-            ${colis.commentaire ? `<p class="text-muted">${colis.commentaire}</p>` : ''}
+            ${colis.commentaire ? `<p class="text-muted">${escapeHtml(colis.commentaire)}</p>` : ''}
             
             <div class="flex gap-2 mt-2">
                 <button class="btn btn-outline action-btn btn-livre" id="btn-livre-${colis.id}">LIVRÉ</button>
@@ -309,10 +317,10 @@ async function handleAction(colisId, currentStatut, requestedAction) {
     }
 
     try {
-        const { error } = await supabase
-            .from('colis')
-            .update({ statut_livreur: newStatut })
-            .eq('id', colisId);
+        const { error } = await supabase.rpc('update_livreur_colis_status', {
+            p_colis_id: colisId,
+            p_statut: newStatut
+        });
 
         if (error) throw error;
 

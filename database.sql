@@ -1,3 +1,7 @@
+-- ATTENTION : SCRIPT DE BOOTSTRAP DESTRUCTIF.
+-- NE PAS RÉEXÉCUTER SUR UNE BASE CONTENANT DES DONNÉES.
+-- Pour les évolutions, utiliser les fichiers de supabase/migrations/.
+
 -- ============================================================
 -- 0. NETTOYAGE
 -- ============================================================

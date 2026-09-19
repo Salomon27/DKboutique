@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Zones - DK Boutique</title>
+  <meta name="theme-color" content="#F4F7FB">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1 class="header-title" style="margin:0;">ZONES</h1>
+      <div class="text-sm text-muted">Affectation des livreurs</div>
+    </div>
+    <a href="livreurs.html" class="btn btn-outline small-action">Retour</a>
+  </header>
+
+  <main class="page-shell">
+    <section class="card mb-4">
+      <h2>Ajouter une zone</h2>
+      <div class="form-group">
+        <label for="zoneName">Nom de la zone</label>
+        <input id="zoneName" class="form-control" placeholder="Ex: Cocody">
+      </div>
+      <button id="addZoneBtn" class="btn btn-primary">AJOUTER</button>
+    </section>
+
+    <section class="card">
+      <h2>Zones enregistrées</h2>
+      <div id="zoneList"></div>
+    </section>
+  </main>
+
+  <script type="module" src="js/zones.js?v=1"></script>
+  <script type="module" src="js/navigation.js?v=1"></script>
+</body>
+</html>

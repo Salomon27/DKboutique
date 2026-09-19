@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Dossier tournée - DK Boutique</title>
+  <meta name="theme-color" content="#F4F7FB">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .parcel-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+    .parcel-item { border:1px solid var(--border); border-radius:14px; overflow:hidden; background:var(--bg-card); }
+    .parcel-item img { width:100%; aspect-ratio:1; object-fit:cover; display:block; background:var(--border); }
+    .parcel-body { padding:.7rem; }
+    .timeline-line { border-left:2px solid var(--border); margin-left:.5rem; padding-left:1rem; }
+    .timeline-entry { margin-bottom:1rem; position:relative; }
+    .timeline-entry::before { content:''; width:10px; height:10px; background:var(--primary); border-radius:50%; position:absolute; left:-1.38rem; top:.3rem; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1 class="header-title" style="margin:0;">DOSSIER TOURNÉE</h1>
+      <div id="headerMeta" class="text-sm text-muted">Chargement...</div>
+    </div>
+    <a href="rapports.html" class="btn btn-outline small-action">Retour</a>
+  </header>
+
+  <main class="page-shell">
+    <section class="stats-grid mb-4">
+      <div class="stat-card"><div class="stat-label">Chargement</div><div class="stat-value" id="statLoad">0 F</div></div>
+      <div class="stat-card"><div class="stat-label">Retours</div><div class="stat-value" id="statReturns">0 F</div></div>
+      <div class="stat-card"><div class="stat-label">Frais + livraisons</div><div class="stat-value" id="statFees">0 F</div></div>
+      <div class="stat-card"><div class="stat-label">Net</div><div class="stat-value" id="statNet">0 F</div></div>
+    </section>
+
+    <section class="card mb-4">
+      <div class="page-title-row">
+        <div>
+          <h2 id="livreurName" style="margin:0;">Livreur</h2>
+          <div id="tourMeta" class="text-sm text-muted"></div>
+        </div>
+        <span id="statusBadge" class="badge badge-primary">--</span>
+      </div>
+      <div class="stats-grid">
+        <div><div class="stat-label">Colis initiaux</div><div id="countInitial" class="font-bold">0</div></div>
+        <div><div class="stat-label">Ajouts</div><div id="countAdd" class="font-bold">0</div></div>
+        <div><div class="stat-label">Livrés</div><div id="countDelivered" class="font-bold">0</div></div>
+        <div><div class="stat-label">Retours confirmés</div><div id="countReturns" class="font-bold">0</div></div>
+      </div>
+    </section>
+
+    <section class="card mb-4">
+      <h2>Chronologie</h2>
+      <div id="timeline" class="timeline-line"></div>
+    </section>
+
+    <section class="card">
+      <h2>Colis</h2>
+      <div id="parcelGrid" class="parcel-grid"></div>
+    </section>
+  </main>
+
+  <script type="module" src="js/dossier-detail.js?v=1"></script>
+  <script type="module" src="js/navigation.js?v=1"></script>
+</body>
+</html>
