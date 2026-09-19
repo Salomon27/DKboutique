@@ -3,6 +3,31 @@ import { supabase } from './config.js';
 import { compressImage } from './colis-utils.js';
 
 const tourneeSelect = document.getElementById('tourneeSelect');
+const tourneeLoadError = document.getElementById('tourneeLoadError');
+const reloadTourneesBtn = document.getElementById('reloadTourneesBtn');
+
+function displayLoadError(error) {
+  const code = String(error?.code || '');
+  const missingView = code === '42703' || code === 'PGRST204' || /gerant_id.*does not exist|column.*gerant_id/i.test(String(error?.message || ''));
+  tourneeLoadError.replaceChildren();
+  const title = document.createElement('strong');
+  title.textContent = missingView
+    ? 'Base Supabase à mettre à jour'
+    : 'Impossible de charger les tournées';
+  const detail = document.createElement('span');
+  detail.textContent = missingView
+    ? 'La vue des tournées ne contient pas encore la colonne gerant_id. Exécutez supabase/LIVE_APP_REPAIR.sql dans Supabase → SQL Editor.'
+    : [code, error?.message].filter(Boolean).join(' · ') || 'Vérifiez votre connexion et réessayez.';
+  tourneeLoadError.append(title, detail);
+  tourneeLoadError.classList.remove('hidden');
+  reloadTourneesBtn.classList.remove('hidden');
+}
+
+function clearLoadError() {
+  tourneeLoadError.classList.add('hidden');
+  reloadTourneesBtn.classList.add('hidden');
+  tourneeLoadError.replaceChildren();
+}
 const noSortieState = document.getElementById('noSortieState');
 const pointContent = document.getElementById('pointContent');
 const livreurName = document.getElementById('livreurName');
@@ -104,9 +129,15 @@ async function init() {
   const user = await auth.requireRole(['gerant']);
   if (!user) return;
 
-  currentProfileId = await auth.getCurrentProfileId();
-  setupUI();
-  await loadSortiesEnCours();
+  try {
+    currentProfileId = await auth.getCurrentProfileId();
+    if (!currentProfileId) throw new Error('Profil Gérant introuvable. Reconnectez-vous.');
+    setupUI();
+    await loadSortiesEnCours();
+  } catch (error) {
+    console.error('Initialisation Point:', error);
+    displayLoadError(error);
+  }
 }
 
 function setupUI() {
@@ -123,8 +154,22 @@ function setupUI() {
     pointContent.classList.remove('hidden');
     closeBar.classList.add('visible');
 
-    await refreshPointData();
-    setupRealtime();
+    try {
+      clearLoadError();
+      await refreshPointData();
+      if (currentSortieId === id) setupRealtime();
+    } catch (error) {
+      console.error('Chargement du Point:', error);
+      displayLoadError(error);
+      resetSelection();
+      tourneeSelect.value = '';
+    }
+  });
+
+  reloadTourneesBtn.addEventListener('click', async () => {
+    reloadTourneesBtn.disabled = true;
+    try { await loadSortiesEnCours(); }
+    finally { reloadTourneesBtn.disabled = false; }
   });
 
   tabs.forEach(tab => {
@@ -188,22 +233,33 @@ function resetSelection() {
 }
 
 async function loadSortiesEnCours() {
+  if (!currentProfileId) {
+    displayLoadError(new Error('Profil Gérant introuvable. Reconnectez-vous.'));
+    return;
+  }
+  tourneeSelect.disabled = true;
   let query = supabase
     .from('v_sorties_resume')
     .select('id, livreur_nom, zone_nom, nb_colis_total, net_a_encaisser, created_at, gerant_id')
     .eq('statut', 'en_cours')
     .order('created_at', { ascending: false });
 
-  if (currentProfileId) {
-    query = query.eq('gerant_id', currentProfileId);
-  }
+  query = query.eq('gerant_id', currentProfileId);
 
   const { data, error } = await query;
   if (error) {
-    console.error(error);
-    showToast('Impossible de charger les tournées.');
+    console.error('Lecture des tournées:', error);
+    displayLoadError(error);
+    tourneeSelect.disabled = true;
+    tourneeSelect.replaceChildren();
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'Chargement indisponible';
+    tourneeSelect.appendChild(option);
     return;
   }
+
+  clearLoadError();
 
   activeSorties = data || [];
 
@@ -227,6 +283,7 @@ async function loadSortiesEnCours() {
   if (previousValue && activeSorties.some(s => s.id === previousValue)) {
     tourneeSelect.value = previousValue;
   }
+  tourneeSelect.disabled = false;
 }
 
 async function refreshPointData() {
