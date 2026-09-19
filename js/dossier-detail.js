@@ -152,7 +152,9 @@ function renderAudit() {
   const expectedNet = Math.max(0, rawNet);
   const displayedNet = isClosed ? money(resume.montant_final) : money(resume.net_a_encaisser);
 
-  if (!colis.length) issues.push('Le dossier ne contient aucun colis.');
+  if (!colis.length && !parcelCorrections.length) {
+    issues.push('Le dossier ne contient aucun colis.');
+  }
   if (rawNet < -0.01) issues.push('Le total des déductions et retours dépasse la valeur du chargement.');
   if (Math.abs(expectedNet - displayedNet) > 0.01) {
     issues.push(`Écart de montant : net reconstitué ${formatFcfa(expectedNet)}, net ${isClosed ? 'figé' : 'affiché'} ${formatFcfa(displayedNet)}.`);
