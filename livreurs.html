@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Équipe - DK Boutique</title>
+  <meta name="theme-color" content="#F4F7FB">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1 class="header-title" style="margin:0;">ÉQUIPE</h1>
+      <div class="text-sm text-muted">Livreurs et accès</div>
+    </div>
+    <a href="zones.html" id="zonesLink" class="btn btn-outline small-action">Zones</a>
+  </header>
+
+  <main class="page-shell">
+    <section id="createSection" class="card mb-4 hidden">
+      <div class="page-title-row">
+        <div>
+          <h2 style="margin:0;">Nouveau livreur</h2>
+          <div class="text-sm text-muted">Le compte et le code d'accès sont créés ensemble.</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="newNom">Nom complet</label>
+        <input id="newNom" class="form-control" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="newTel">Téléphone</label>
+        <input id="newTel" class="form-control" type="tel" inputmode="tel">
+      </div>
+      <div class="form-group">
+        <label for="newZone">Zone principale</label>
+        <select id="newZone" class="form-control"></select>
+      </div>
+      <div class="form-group">
+        <label for="newPin">Code PIN — 4 chiffres</label>
+        <input id="newPin" class="form-control" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*" autocomplete="new-password">
+      </div>
+      <button id="createLivreurBtn" class="btn btn-primary">CRÉER LE LIVREUR</button>
+    </section>
+
+    <div class="page-title-row">
+      <div>
+        <h2 style="margin:0;">Livreurs</h2>
+        <div id="teamMeta" class="text-sm text-muted">Chargement...</div>
+      </div>
+      <button id="toggleCreateBtn" class="btn btn-primary small-action hidden">+ Ajouter</button>
+    </div>
+
+    <section class="card">
+      <div id="livreurList"></div>
+    </section>
+  </main>
+
+  <script type="module" src="js/livreurs.js?v=1"></script>
+  <script type="module" src="js/navigation.js?v=1"></script>
+</body>
+</html>
