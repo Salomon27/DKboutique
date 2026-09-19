@@ -182,3 +182,11 @@ body.point-page { background:linear-gradient(180deg,#F2F6FC 0%,#F8FAFE 58%,#F4F7
   .point-finance-strip {grid-template-columns:repeat(4,minmax(0,1fr));}
 }
 @media(prefers-reduced-motion:reduce) {.point-gallery-photo img {transition:none;}}
+
+/* Correction d'une saisie : action secondaire, sans encombrer la photo. */
+.point-correct-btn {width:100%;margin-top:9px;padding:7px 8px;min-height:34px;
+border:1px solid #E2E8F0;border-radius:9px;background:#F8FAFC;color:#64748B;
+font-size:.68rem;font-weight:850;cursor:pointer;}
+.point-correct-btn:focus-visible {outline:2px solid #2563EB;outline-offset:2px;}
+.point-correct-btn:hover {color:#9F1239;border-color:#FDA4AF;background:#FFF1F2;}
+.point-correct-btn:disabled {opacity:.58;cursor:progress;}
