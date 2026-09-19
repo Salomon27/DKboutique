@@ -160,7 +160,7 @@ async function init() {
     await loadSortiesEnCours();
     enableAutoSync(async () => {
       if (currentSortieId) await refreshPointData();
-      await loadSortiesEnCours();
+      await loadSortiesEnCours({ throwOnError: true });
     }, {
       intervalMs: 30000,
       shouldRefresh: () => !photoInput.files?.length && !pointViewer.classList.contains('open')
@@ -319,7 +319,7 @@ function resetSelection() {
   closeBar.classList.remove('visible');
 }
 
-async function loadSortiesEnCours() {
+async function loadSortiesEnCours({ throwOnError = false } = {}) {
   if (!currentProfileId) {
     displayLoadError(new Error('Profil Gérant introuvable. Reconnectez-vous.'));
     return;
@@ -343,6 +343,7 @@ async function loadSortiesEnCours() {
     option.value = '';
     option.textContent = 'Chargement indisponible';
     tourneeSelect.appendChild(option);
+    if (throwOnError) throw error;
     return;
   }
 
