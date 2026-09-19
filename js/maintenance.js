@@ -9,7 +9,9 @@ const el = {
   acknowledge: $('ownerResetAcknowledge'), confirmation: $('ownerResetConfirm'),
   resetCode: $('ownerResetCode'), cleanupPanel: $('ownerCleanupPanel'),
   cleanupCount: $('ownerCleanupCount'), cleanupCode: $('ownerCleanupCode'),
-  cleanup: $('ownerCleanupBtn')
+  cleanup: $('ownerCleanupBtn'),
+  purgeSelect: $('ownerPurgeSelect'), purgeConfirm: $('ownerPurgeConfirm'),
+  purgeCode: $('ownerPurgeCode'), purgeBtn: $('ownerPurgeBtn')
 };
 let busy = false;
 
@@ -24,11 +26,18 @@ function setBusy(busyState) {
   el.retire.disabled = busy;
   el.cleanup.disabled = busy;
   validateResetControls();
+  validatePurgeControls();
 }
 
 function validateResetControls() {
   el.reset.disabled = busy || !el.acknowledge.checked ||
     el.confirmation.value.trim() !== 'EFFACER' || !el.resetCode.value.trim();
+}
+
+function validatePurgeControls() {
+  el.purgeBtn.disabled = busy || !el.purgeSelect.value
+    || el.purgeConfirm.value.trim() !== 'EFFACER LIVREUR'
+    || !el.purgeCode.value.trim();
 }
 
 async function ownerStatus() {
@@ -48,20 +57,44 @@ async function updateCleanupCount() {
 }
 
 async function loadLivreurs() {
-  const { data, error } = await supabase.from('v_livreurs_resume')
-    .select('id, nom, zone_nom, actif, en_tournee, nb_tournees, nb_colis_total').order('nom');
-  if (error) throw error;
-  el.livreur.replaceChildren();
-  const placeholder = document.createElement('option');
-  placeholder.value = '';
-  placeholder.textContent = (data || []).length ? 'Sélectionner un livreur' : 'Aucun livreur';
-  el.livreur.appendChild(placeholder);
-  for (const row of data || []) {
-    const option = document.createElement('option');
-    option.value = row.id;
-    option.textContent = `${row.nom} · ${row.zone_nom || 'Sans zone'} · ${row.nb_tournees || 0} tournée(s)${row.en_tournee ? ' · TOURNÉE EN COURS' : ''}`;
-    el.livreur.appendChild(option);
+  // La liste privée inclut les comptes déjà désactivés et masqués dans Équipe.
+  const privateResult = await supabase.rpc('maintenance_liste_livreurs');
+  let rows;
+  if (!privateResult.error) {
+    rows = privateResult.data || [];
+  } else if (privateResult.error.code === 'PGRST202' || privateResult.error.code === '42883') {
+    // Ancienne base, avant installation de la nouvelle migration.
+    const { data, error } = await supabase.from('v_livreurs_resume')
+      .select('id, nom, zone_nom, actif, en_tournee, nb_tournees, nb_colis_total').order('nom');
+    if (error) throw error;
+    rows = data || [];
+    el.purgeBtn.disabled = true;
+  } else {
+    throw privateResult.error;
   }
+  el.livreur.replaceChildren();
+  el.purgeSelect.replaceChildren();
+  for (const [select, message] of [
+    [el.livreur, 'Choisir un livreur à désactiver'],
+    [el.purgeSelect, 'Choisir le livreur à effacer']
+  ]) {
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = rows.length ? message : 'Aucun livreur';
+    select.appendChild(placeholder);
+  }
+  for (const row of rows) {
+    const text = `${row.nom} · ${row.zone_nom || 'Sans zone'} · ${row.nb_tournees || 0} tournée(s) · ${row.nb_colis || row.nb_colis_total || 0} colis${row.actif ? '' : ' · DÉSACTIVÉ'}`;
+    const opt = document.createElement('option');
+    opt.value = row.id;
+    opt.textContent = text;
+    el.purgeSelect.appendChild(opt);
+    if (row.actif) {
+      const retire = opt.cloneNode(true);
+      el.livreur.appendChild(retire);
+    }
+  }
+  validatePurgeControls();
 }
 
 async function removeLivreur() {
@@ -88,6 +121,47 @@ async function removeLivreur() {
   } catch (error) {
     console.error('Retrait du livreur :', error?.code || 'erreur');
     report(error?.message || 'Retrait impossible.', true);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function purgeLivreur() {
+  const id = el.purgeSelect.value;
+  const code = el.purgeCode.value;
+  const selectedName = el.purgeSelect.selectedOptions[0]?.textContent || '';
+  if (!id || !code.trim() || el.purgeConfirm.value.trim() !== 'EFFACER LIVREUR') return;
+  const question = [
+    'SUPPRESSION CIBLÉE DÉFINITIVE',
+    selectedName,
+    'Ses tournées (même clôturées), ses colis, ses opérations et son compte seront supprimés.',
+    'Seuls les dossiers de ce livreur seront retirés des totaux financiers.',
+    'Les données des autres livreurs seront conservées.',
+    'Confirmer ?'
+  ].join('\n\n');
+  if (!window.confirm(question)) return;
+  setBusy(true);
+  el.purgeCode.value = '';
+  try {
+    const { data, error } = await supabase.rpc('maintenance_effacer_livreur', {
+      p_livreur_id: id, p_secret: code
+    });
+    if (error) throw error;
+    if (!data?.ok) return report(data?.error || 'Suppression refusée.', true);
+    el.purgeConfirm.value = '';
+    await loadLivreurs();
+    report(`Compte et dossiers ciblés supprimés : ${data.tournees || 0} tournée(s), ${data.colis || 0} colis. Nettoyage des photos…`);
+    try {
+      const count = await cleanupPhotos();
+      report(`Suppression ciblée terminée. ${count} photo(s) nettoyée(s). Autres livreurs préservés.`);
+    } catch (errorPhoto) {
+      await updateCleanupCount().catch(() => {});
+      report('Données du livreur supprimées des comptes. Des photos restent à nettoyer depuis le panneau privé.', true);
+      console.error('Nettoyage ciblé:', errorPhoto?.code || 'erreur');
+    }
+  } catch (error) {
+    console.error('Suppression ciblée:', error?.code || 'erreur');
+    report(error?.message || 'Suppression ciblée impossible.', true);
   } finally {
     setBusy(false);
   }
@@ -186,6 +260,9 @@ async function init() {
     el.retire.addEventListener('click', removeLivreur);
     el.reset.addEventListener('click', resetBusinessData);
     el.cleanup.addEventListener('click', resumeCleanup);
+    el.purgeBtn.addEventListener('click', purgeLivreur);
+    [el.purgeSelect, el.purgeConfirm, el.purgeCode].forEach(input =>
+      input.addEventListener('input', validatePurgeControls));
     await Promise.all([loadLivreurs(), updateCleanupCount()]);
   } catch (error) {
     // In particular: feature not yet installed and owner identity not yet configured.
