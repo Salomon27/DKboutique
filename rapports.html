@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Archives - DK Boutique</title>
+  <meta name="theme-color" content="#F4F7FB">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1 class="header-title" style="margin:0;">ARCHIVES</h1>
+      <div class="text-sm text-muted">Tournées clôturées</div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <div class="toolbar">
+      <input id="searchInput" class="form-control" placeholder="Rechercher livreur ou zone">
+      <input id="dateInput" class="form-control" type="date">
+      <select id="livreurFilter" class="form-control">
+        <option value="">Tous les livreurs</option>
+      </select>
+    </div>
+
+    <section class="stats-grid mb-4">
+      <div class="stat-card">
+        <div class="stat-label">Dossiers</div>
+        <div class="stat-value" id="statCount">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Net encaissé</div>
+        <div class="stat-value" id="statNet">0 F</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Colis</div>
+        <div class="stat-value" id="statColis">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Retours</div>
+        <div class="stat-value" id="statRetours">0 F</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div id="archiveList"></div>
+    </section>
+  </main>
+
+  <script type="module" src="js/rapports.js?v=1"></script>
+  <script type="module" src="js/navigation.js?v=1"></script>
+</body>
+</html>
