@@ -20,6 +20,7 @@ const photoInput = document.getElementById('photoInput');
 const cameraPreview = document.getElementById('cameraPreview');
 const photoPlaceholder = document.getElementById('photoPlaceholder');
 const montantInput = document.getElementById('montantInput');
+const amountDoneBtn = document.getElementById('amountDoneBtn');
 const isPaidCheckbox = document.getElementById('isPaidCheckbox');
 const noteInput = document.getElementById('noteInput');
 const addColisBtn = document.getElementById('addColisBtn');
@@ -36,6 +37,23 @@ const progressText = document.getElementById('progressText');
 const progressCount = document.getElementById('progressCount');
 const progressContainer = document.getElementById('progressContainer');
 const progressBar = document.getElementById('progressBar');
+const validationErrorBox = document.getElementById('dispatchValidationError');
+const validationErrorSummary = document.getElementById('dispatchErrorSummary');
+const validationErrorDetail = document.getElementById('dispatchErrorDetail');
+
+function hideValidationError() {
+    validationErrorBox.classList.add('hidden');
+    validationErrorSummary.textContent = '';
+    validationErrorDetail.textContent = '';
+}
+
+function showValidationError(stage, error) {
+    const code = String(error?.code || error?.statusCode || error?.status || '');
+    const message = String(error?.message || 'Aucun détail retourné par le serveur.').slice(0, 300);
+    validationErrorSummary.textContent = `Échec · ${stage}`;
+    validationErrorDetail.textContent = [code ? `Code : ${code}` : '', message].filter(Boolean).join(' · ');
+    validationErrorBox.classList.remove('hidden');
+}
 const parcelViewer = document.getElementById('parcelViewer');
 const parcelViewerImage = document.getElementById('parcelViewerImage');
 const parcelViewerTitle = document.getElementById('parcelViewerTitle');
@@ -160,6 +178,19 @@ async function init() {
     livreurSelect.addEventListener('change', handleLivreurChange);
     photoInput.addEventListener('change', handlePhotoChange);
     isPaidCheckbox.addEventListener('change', handlePaidToggle);
+    amountDoneBtn.addEventListener('click', () => montantInput.blur());
+    montantInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            montantInput.blur();
+        }
+    });
+    // Tapping elsewhere on the form releases numeric keyboards on mobile.
+    colisFormContainer.addEventListener('pointerdown', event => {
+        if (document.activeElement === montantInput && !event.target.closest('.amount-box')) {
+            montantInput.blur();
+        }
+    });
     addColisBtn.addEventListener('click', addLocalColis);
     validateAllBtn.addEventListener('click', validateAllColis);
     previewZoomBtn.addEventListener('click', () => {
@@ -442,6 +473,7 @@ async function validateAllColis() {
         return;
     }
     isValidating = true;
+    hideValidationError();
     livreurSelect.disabled = true;
     updateStage();
     validateAllBtn.disabled = true;
@@ -450,6 +482,7 @@ async function validateAllColis() {
     progressStatusContainer.classList.remove('hidden');
     progressContainer.style.display = 'block';
     let successCount = 0;
+    let failureStage = 'vérification du compte';
     const pendingToProcess = pendingColis.filter(c => c.status !== 'saved');
     const totalCount = pendingToProcess.length;
     progressCount.textContent = `0 / ${totalCount}`;
@@ -466,6 +499,7 @@ async function validateAllColis() {
 
         // Etape 1: Gérer la création de la sortie avec gestion de concurrence
         if (!currentSortieId) {
+            failureStage = 'création de tournée';
             const { data: newSortie, error: sortieError } = await supabase
                 .from('sorties')
                 .insert([{
@@ -510,6 +544,7 @@ async function validateAllColis() {
             const photoPath = `sorties/${currentSortieId}/${colis.id}.jpg`;
             
             // A. Upload Storage
+            failureStage = `photo ${successCount + 1}/${totalCount}`;
             const { error: uploadError } = await supabase.storage
                 .from('colis-photos')
                 .upload(photoPath, colis.file);
@@ -517,6 +552,7 @@ async function validateAllColis() {
             if (uploadError) throw uploadError;
 
             // B. Insertion BDD
+            failureStage = `colis ${successCount + 1}/${totalCount}`;
             const { error: insertError } = await supabase
                 .from('colis')
                 .insert([{
@@ -544,6 +580,7 @@ async function validateAllColis() {
         }
 
         // Succès complet
+        hideValidationError();
         progressText.textContent = "Terminé !";
         progressText.style.color = "var(--success)";
         
@@ -568,8 +605,10 @@ async function validateAllColis() {
         }, 500);
 
     } catch (err) {
-        console.error("Erreur lors de la validation:", err);
-        alert("Une erreur est survenue lors de l'enregistrement. Les colis non confirmés sont restés dans votre panier.");
+        console.error(`Échec validation Dispatch (${failureStage}):`, err);
+        showValidationError(failureStage, err);
+        // Keep unsaved photos for retry; never report a successful validation.
+        progressText.textContent = 'Échec';
         
         // Garder uniquement les colis qui n'ont pas encore été confirmés.
         // Ainsi RÉESSAYER ne renvoie jamais une photo/UUID déjà enregistré.
@@ -583,8 +622,8 @@ async function validateAllColis() {
         // Reset bouton mais garde uniquement les colis non confirmés
         validateAllBtn.disabled = pendingColis.length === 0;
         validateAllBtn.textContent = "RÉESSAYER LA VALIDATION";
-        progressText.textContent = "Erreur...";
         progressText.style.color = "var(--danger)";
+        progressStatusContainer.classList.remove('hidden');
     }
 }
 
