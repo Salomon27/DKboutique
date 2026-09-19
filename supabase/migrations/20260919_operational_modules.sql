@@ -284,25 +284,39 @@ select
   l.zone_id,
   z.nom as zone_nom,
   l.actif,
-  exists (
-    select 1
-    from public.sorties sa
-    where sa.livreur_id = l.id
-      and sa.statut = 'en_cours'
-  ) as en_tournee,
-  count(distinct s.id)::integer as nb_tournees,
-  count(c.id)::integer as nb_colis_total,
-  count(c.id) filter (where c.statut_livreur = 'livre')::integer as nb_colis_livres,
-  count(c.id) filter (where c.statut_livreur = 'retourne')::integer as nb_colis_retournes,
-  coalesce(
-    sum(distinct s.montant_final) filter (where s.statut = 'cloturee'),
-    0
-  ) as total_encaisse
+  coalesce(s_stats.en_tournee, false) as en_tournee,
+  coalesce(s_stats.nb_tournees, 0)::integer as nb_tournees,
+  coalesce(c_stats.nb_colis_total, 0)::integer as nb_colis_total,
+  coalesce(c_stats.nb_colis_livres, 0)::integer as nb_colis_livres,
+  coalesce(c_stats.nb_colis_retournes, 0)::integer as nb_colis_retournes,
+  coalesce(s_stats.total_encaisse, 0) as total_encaisse
 from public.livreurs l
 join public.zones z on z.id = l.zone_id
-left join public.sorties s on s.livreur_id = l.id
-left join public.colis c on c.sortie_id = s.id
-group by l.id, l.nom, l.telephone, l.zone_id, z.nom, l.actif;
+left join lateral (
+  select
+    exists (
+      select 1
+      from public.sorties sa
+      where sa.livreur_id = l.id
+        and sa.statut = 'en_cours'
+    ) as en_tournee,
+    count(*)::integer as nb_tournees,
+    coalesce(
+      sum(s.montant_final) filter (where s.statut = 'cloturee'),
+      0
+    ) as total_encaisse
+  from public.sorties s
+  where s.livreur_id = l.id
+) s_stats on true
+left join lateral (
+  select
+    count(c.id)::integer as nb_colis_total,
+    count(c.id) filter (where c.statut_livreur = 'livre')::integer as nb_colis_livres,
+    count(c.id) filter (where c.statut_livreur = 'retourne')::integer as nb_colis_retournes
+  from public.colis c
+  join public.sorties s on s.id = c.sortie_id
+  where s.livreur_id = l.id
+) c_stats on true;
 
 grant select on public.v_livreurs_resume to authenticated;
 
