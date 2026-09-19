@@ -153,7 +153,13 @@ function setupUI() {
   });
 
   photoInput.addEventListener('change', () => {
-    clearPreview();
+    // Do not clear the file input here: it contains the photo just selected.
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = null;
+    cameraPreview.removeAttribute('src');
+    cameraPreview.style.display = 'none';
+    photoPlaceholder.style.display = 'block';
+
     const file = photoInput.files?.[0];
     if (!file) return;
 
@@ -254,7 +260,7 @@ async function refreshPointData() {
   );
   selectedForRetour = new Set([...selectedForRetour].filter(id => validSelectedIds.has(id)));
 
-  renderAll();
+  await renderAll();
 }
 
 function hasOperation(colisId, type) {
@@ -265,14 +271,13 @@ function getOperation(colisId, type) {
   return currentOps.find(op => op.colis_id === colisId && op.type === type) || null;
 }
 
-function renderAll() {
+async function renderAll() {
   renderHeader();
-  renderRetours();
-  renderLivraisons();
   renderFrais();
   renderTimeline();
   renderFinance();
   renderControl();
+  await Promise.all([renderRetours(), renderLivraisons()]);
 }
 
 function renderHeader() {
