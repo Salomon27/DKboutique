@@ -49,7 +49,7 @@ async function updateCleanupCount() {
 
 async function loadLivreurs() {
   const { data, error } = await supabase.from('v_livreurs_resume')
-    .select('id, nom, zone_nom, actif, nb_tournees').order('nom');
+    .select('id, nom, zone_nom, actif, en_tournee, nb_tournees, nb_colis_total').order('nom');
   if (error) throw error;
   el.livreur.replaceChildren();
   const placeholder = document.createElement('option');
@@ -59,7 +59,7 @@ async function loadLivreurs() {
   for (const row of data || []) {
     const option = document.createElement('option');
     option.value = row.id;
-    option.textContent = `${row.nom} · ${row.zone_nom || 'Sans zone'} · ${row.nb_tournees || 0} tournée(s)${row.actif ? '' : ' · INACTIF'}`;
+    option.textContent = `${row.nom} · ${row.zone_nom || 'Sans zone'} · ${row.nb_tournees || 0} tournée(s)${row.en_tournee ? ' · TOURNÉE EN COURS' : ''}`;
     el.livreur.appendChild(option);
   }
 }
@@ -69,7 +69,7 @@ async function removeLivreur() {
   const code = el.driverCode.value;
   const label = el.livreur.selectedOptions[0]?.textContent || 'ce livreur';
   if (!id || !code.trim()) return report('Sélectionnez un livreur et saisissez votre code privé.', true);
-  if (!window.confirm(`Retirer ${label} ? Les dossiers existants resteront conservés.`)) return;
+  if (!window.confirm(`Désactiver et masquer ${label} ?\\n\\nSa tournée en cours, ses colis, photos et historiques disparaîtront des écrans habituels. Son accès sera révoqué.\\n\\nLes données restent en base pour un contrôle ultérieur. Les montants non encaissés ne seront PAS clôturés.`)) return;
   setBusy(true);
   el.driverCode.value = '';
   try {
