@@ -201,6 +201,83 @@
       .stage-preview .camera-container,.stage-queue .camera-container { animation: none; }
       .header-icon,.progress-bar { transition: none; }
     }
+
+    /* Édition courte et densité visuelle : le panier de photos reste prioritaire. */
+    .stage-select .identity-intro, .stage-select .dispatch-identity { width:100%; max-width:500px; margin-left:auto; margin-right:auto; }
+    .stage-select .identity-intro { margin-bottom:19px; }
+    .stage-select .identity-intro h2 { font-size:1.35rem; }
+    .stage-select .dispatch-form-area { justify-content:center; }
+
+    .stage-queue .dispatch-form-area, .stage-preview .dispatch-form-area { padding:9px 11px 8px; }
+    .stage-queue .dispatch-identity,.stage-preview .dispatch-identity {
+      flex-direction:row; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+      align-items:end; gap:7px; margin-bottom:7px;
+    }
+    .stage-queue .identity-label,.stage-preview .identity-label { font-size:.56rem; margin-bottom:3px; }
+    .stage-queue .dispatch-identity .form-control,.stage-preview .dispatch-identity .form-control {height:37px; min-height:37px; font-size:.74rem; padding:0 7px; }
+    .stage-queue .zone-field,.stage-preview .zone-field { height:37px; border-radius:10px; padding:0 7px; gap:5px; }
+    .stage-queue .zone-field svg,.stage-preview .zone-field svg {width:12px;height:12px;flex-basis:12px;}
+    .stage-queue #zoneDisplay,.stage-preview #zoneDisplay {font-size:.72rem;}
+    .stage-queue .dispatch-form.card,.stage-preview .dispatch-form.card {padding:8px 9px 9px;border-radius:13px;}
+    .stage-queue .dispatch-form-title,.stage-preview .dispatch-form-title { display:none; }
+    .stage-queue .dispatch-capture-row,.stage-preview .dispatch-capture-row { grid-template-columns:64px minmax(0,1fr);gap:8px;}
+    .stage-queue .camera-container,.stage-preview .camera-container {width:64px;height:64px;border-radius:9px;}
+    .stage-queue #photoPlaceholder svg,.stage-preview #photoPlaceholder svg {width:20px;height:20px;}
+    .stage-queue .camera-caption,.stage-preview .camera-caption {font-size:.48rem;letter-spacing:0;}
+    .stage-queue .camera-help,.stage-preview .camera-help { display:none; }
+    .stage-queue .amount-box,.stage-preview .amount-box {height:64px; padding:4px 9px; border-radius:9px;}
+    .stage-queue .amount-overline,.stage-preview .amount-overline {font-size:.52rem;}
+    .stage-queue .amount-box input,.stage-preview .amount-box input {height:28px;font-size:1.05rem;}
+    .stage-queue .amount-box input::placeholder,.stage-preview .amount-box input::placeholder {font-size:1rem;}
+    .stage-queue .dispatch-note-row,.stage-preview .dispatch-note-row {margin-top:7px;grid-template-columns:minmax(0,1fr) 102px;gap:7px;}
+    .stage-queue .dispatch-note-row .form-control,.stage-preview .dispatch-note-row .form-control,
+    .stage-queue .compact-add.btn,.stage-preview .compact-add.btn {height:37px;min-height:37px;border-radius:9px;}
+    .stage-queue .compact-add.btn,.stage-preview .compact-add.btn {width:102px;font-size:.68rem;}
+    .stage-queue .dispatch-status,.stage-preview .dispatch-status {padding:3px 1px 0;font-size:.58rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .stage-queue .dispatch-list-panel,.stage-preview .dispatch-list-panel {padding:8px 10px 110px;}
+    .dispatch-photo-grid {grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+    .dispatch-photo-grid .photo-card {min-width:0;border-radius:11px;}
+    .dispatch-photo-grid .photo-overlay {z-index:2;}
+    .dispatch-photo-grid .photo-overlay {pointer-events:none;}
+    .dispatch-photo-grid .photo-overlay button {pointer-events:auto;}
+    .preview-card-btn {display:block;width:100%;height:100%;padding:0;border:0;background:transparent;cursor:zoom-in;}
+    .preview-card-btn img {display:block;width:100%;height:100%;object-fit:cover;}
+    .preview-card-btn:focus-visible {outline:3px solid #93C5FD;outline-offset:-3px;}
+
+    /* Validation : panneau et action visibles, centrés, sans menu inférieur. */
+    .dispatch-footer.sticky-footer {
+      position:fixed; inset-inline:12px; left:12px!important;right:12px!important;
+      transform:none!important; margin:0 auto; width:auto!important;max-width:620px;
+      bottom:calc(12px + env(safe-area-inset-bottom))!important; padding:10px 12px 11px;
+      background:#FFF; border:1px solid #CADCF5!important;border-radius:16px!important;
+      box-shadow:0 8px 30px rgba(26,64,125,.15)!important;
+    }
+    .dispatch-footer .recap-row {display:flex;align-items:center;justify-content:space-between;font-size:.75rem;gap:8px;}
+    .dispatch-footer #localTotal {font-size:1.08rem;color:#1D4ED8;}
+    .dispatch-footer #validateAllBtn {
+      display:flex;align-items:center;justify-content:center;gap:10px;
+      width:100%;min-height:51px; white-space:nowrap;
+      color:#FFF!important;background:linear-gradient(120deg,#1D4ED8,#2563EB)!important;
+      font-size:.89rem;font-weight:900;letter-spacing:.01em;
+      box-shadow:0 5px 15px rgba(37,99,235,.17);
+    }
+    .dispatch-footer #validateAllBtn span {font-size:1.25rem;line-height:1;}
+    .dispatch-footer #validateAllBtn:disabled {background:#9CB6E3!important;color:#FFF!important;opacity:.8;}
+    body.dispatch-page .bottom-nav {display:none!important;}
+
+    .preview-zoom {position:absolute;z-index:3;right:4px;top:4px;padding:5px 6px;border:0;border-radius:6px;
+      color:#FFF;background:rgba(15,23,42,.87);font-size:.55rem;font-weight:900;cursor:zoom-in;}
+    .preview-zoom[hidden] {display:none!important;}
+    .parcel-viewer {position:fixed;inset:0;z-index:1000;background:rgba(3,9,23,.97);display:none;
+      flex-direction:column;align-items:center;justify-content:center;padding:60px 12px calc(16px + env(safe-area-inset-bottom));gap:12px;}
+    .parcel-viewer.open {display:flex;}
+    .parcel-viewer-top {position:absolute;top:calc(14px + env(safe-area-inset-top));left:15px;right:15px;
+      display:flex;align-items:center;justify-content:space-between;gap:10px;color:#FFF;font-size:.75rem;font-weight:900;}
+    .viewer-close {border:1px solid rgba(255,255,255,.32);border-radius:9px;background:#FFF;color:#132F63;min-height:38px;padding:7px 12px;font-weight:900;cursor:pointer;}
+    #parcelViewerImage {display:block;max-width:100%;max-height:calc(100dvh - 155px);object-fit:contain;border-radius:9px;}
+    .parcel-viewer-note {font-size:.83rem;font-weight:800;color:#FFF;text-align:center;}
+    @media (min-width:620px) {.dispatch-photo-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
+    @media (max-width:360px) {.dispatch-footer #validateAllBtn{font-size:.79rem;}.stage-queue .dispatch-note-row,.stage-preview .dispatch-note-row{grid-template-columns:minmax(0,1fr) 91px;}.stage-queue .compact-add.btn,.stage-preview .compact-add.btn{width:91px;}}
   </style>
 </head>
 <body class="dispatch-page stage-select">
@@ -225,8 +302,7 @@
     <section class="dispatch-form-area" aria-label="Préparer une tournée">
       <div class="identity-intro">
         <span class="eyebrow">PRÉPARATION D'UNE TOURNÉE</span>
-        <h2>À quel livreur confiez-vous les colis ?</h2>
-        <p>Sélectionnez un livreur. Sa zone de livraison apparaîtra automatiquement en dessous.</p>
+        <h2>Choisir un livreur</h2>
       </div>
       <div class="dispatch-identity">
         <div class="identity-field">
@@ -236,28 +312,28 @@
           </select>
         </div>
         <div id="zoneContainer" class="identity-field">
-          <span class="identity-label">ZONE DE LIVRAISON</span>
+          <span class="identity-label">ZONE</span>
           <div class="zone-field">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.3 7-12a7 7 0 0 0-14 0c0 5.7 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
-            <span id="zoneDisplay">Attribuée après sélection du livreur</span>
+            <span id="zoneDisplay">Zone automatique</span>
           </div>
         </div>
       </div>
 
       <div id="colisFormContainer" class="card dispatch-form" aria-busy="false">
         <div class="dispatch-form-title">
-          <span>PHOTOGRAPHIER LE COLIS</span>
-          <span class="dispatch-form-hint">Photo · Montant · Note</span>
+          <span>PHOTO DU COLIS</span>
+          <span class="dispatch-form-hint">1 photo / colis</span>
         </div>
         <div class="dispatch-capture-row">
           <div class="camera-container">
             <span id="photoPlaceholder" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="14" r="3.2"/></svg>
               <span class="camera-caption">PRENDRE UNE PHOTO</span>
-              <span class="camera-help">Touchez cet espace pour ouvrir l’appareil photo de votre téléphone.</span>
             </span>
             <img id="cameraPreview" alt="Aperçu du colis">
             <input type="file" id="photoInput" accept="image/*" capture="environment" class="capture-input" aria-label="Prendre ou choisir la photo du colis" disabled>
+            <button id="previewZoomBtn" class="preview-zoom" type="button" hidden aria-label="Voir en grand la photo prise">AGRANDIR</button>
           </div>
           <div class="amount-box">
             <span class="amount-overline">À ENCAISSER · FCFA</span>
@@ -277,18 +353,17 @@
       <h2 id="gridTitle" class="dispatch-list-title">Colis préparés</h2>
       <div id="emptyCart" class="dispatch-empty">
         <span class="dispatch-empty-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 8 4.5v11L12 22l-8-4.5v-11L12 2Z"/><path d="m4 6.5 8 4.5 8-4.5M12 11v11"/></svg></span>
-        <span class="dispatch-empty-title">Votre sélection est vide</span>
-        <span class="dispatch-empty-desc">Ajoutez vos colis ici avant de valider la tournée.</span>
+        <span class="dispatch-empty-title">Aucun colis</span>
       </div>
       <div id="localColisGrid" class="photo-grid dispatch-photo-grid"></div>
     </section>
   </main>
 
   <div id="stickyFooter" class="sticky-footer dispatch-footer">
-    <div class="recap-row"><span><span id="localColisCount">0</span> COLIS PRÉPARÉS</span><strong id="localTotal">0 F</strong></div>
+    <div class="recap-row"><span><span id="localColisCount">0</span> COLIS</span><strong id="localTotal">0 F</strong></div>
     <div id="progressStatusContainer" class="recap-row hidden"><span id="progressText">Envoi…</span><span id="progressCount">0/0</span></div>
     <div id="progressContainer" class="progress-container"><div id="progressBar" class="progress-bar"></div></div>
-    <button id="validateAllBtn" class="btn btn-primary" type="button" disabled>VALIDER LA TOURNÉE</button>
+    <button id="validateAllBtn" class="btn btn-primary" type="button" disabled>VALIDER LA TOURNÉE <span aria-hidden="true">→</span></button>
   </div>
 
   <div id="dispatchDrawerBackdrop" class="dispatch-drawer-backdrop">
@@ -303,7 +378,13 @@
     </nav>
   </div>
 
-  <script type="module" src="js/dispatch.js?v=9"></script>
-  <script type="module" src="js/navigation.js?v=1"></script>
+  <div id="parcelViewer" class="parcel-viewer" role="dialog" aria-modal="true" aria-label="Photo du colis" aria-hidden="true">
+    <div class="parcel-viewer-top"><span id="parcelViewerTitle">PHOTO DU COLIS</span><button type="button" id="closeViewerBtn" class="viewer-close" aria-label="Fermer l'agrandissement">FERMER ×</button></div>
+    <img id="parcelViewerImage" alt="Photo du colis agrandie">
+    <div id="parcelViewerNote" class="parcel-viewer-note"></div>
+  </div>
+
+  <script type="module" src="js/dispatch.js?v=10"></script>
+  <script type="module" src="js/navigation.js?v=2"></script>
 </body>
 </html>
