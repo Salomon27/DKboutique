@@ -20,11 +20,13 @@ begin
      or pg_catalog.length(v_private_code) < 8 then
     raise exception 'Configuration non effectuée : saisissez votre propre code dans SQL Editor.';
   end if;
-  select count(*), min(id) into v_count, v_owner_id
+  select count(*) into v_count
   from public.profiles where role::text = 'patronne' and actif = true;
   if v_count <> 1 then
     raise exception 'Un seul profil Patronne actif doit être identifié avant configuration.';
   end if;
+  select id into v_owner_id
+  from public.profiles where role::text = 'patronne' and actif = true;
   insert into dk_private.owner_control
     (id, owner_profile_id, secret_hash, failures, blocked_until, updated_at)
   values
