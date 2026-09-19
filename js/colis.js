@@ -28,13 +28,24 @@ async function loadData() {
   tourMap.clear();
 
   if (sortieIds.length) {
-    const { data: tours, error: tourError } = await supabase
+    const role = await auth.getCurrentRole();
+    let tourQuery = supabase
       .from('v_sorties_resume')
-      .select('id, livreur_nom, zone_nom, statut, created_at, closed_at')
+      .select('id, livreur_nom, zone_nom, statut, created_at, closed_at, gerant_id')
       .in('id', sortieIds);
 
+    if (role === 'gerant') {
+      const profileId = await auth.getCurrentProfileId();
+      if (profileId) tourQuery = tourQuery.eq('gerant_id', profileId);
+    }
+
+    const { data: tours, error: tourError } = await tourQuery;
     if (tourError) throw tourError;
     (tours || []).forEach(t => tourMap.set(t.id, t));
+
+    if (role === 'gerant') {
+      parcels = parcels.filter(p => tourMap.has(p.sortie_id));
+    }
   }
 
   await render();
