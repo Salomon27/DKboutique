@@ -47,7 +47,7 @@ begin
  end if;
  v_actor := public.current_profile_id();
  if v_actor is null then raise exception 'Session invalide.'; end if;
- v_reason := pg_catalog.nullif(pg_catalog.btrim(p_motif),'');
+ v_reason := nullif(btrim(p_motif),'');
  if v_reason is null or pg_catalog.length(v_reason) < 5
     or pg_catalog.length(v_reason) > 180 then
    raise exception 'Précisez le motif de la correction (5 à 180 caractères).';
@@ -176,7 +176,11 @@ language plpgsql security definer set search_path = ''
 as $$
 begin
  if public.current_app_role() not in ('gerant','patronne')
-   or not public.dk_sortie_visible(p_sortie_id) then
+   or not exists(
+     select 1 from public.sorties s
+     join public.livreurs l on l.id=s.livreur_id
+     where s.id=p_sortie_id and s.suspendue_at is null and l.actif
+   ) then
    raise exception 'Accès au dossier refusé.';
  end if;
  if public.current_app_role()='gerant' and not exists(
