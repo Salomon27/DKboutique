@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Profil livreur - DK Boutique</title>
+  <meta name="theme-color" content="#F4F7FB">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1 class="header-title" id="pageTitle" style="margin:0;">LIVREUR</h1>
+      <div class="text-sm text-muted" id="statusText">Chargement...</div>
+    </div>
+    <a href="livreurs.html" class="btn btn-outline small-action">Retour</a>
+  </header>
+
+  <main class="page-shell">
+    <section class="stats-grid mb-4">
+      <div class="stat-card">
+        <div class="stat-label">Tournées</div>
+        <div class="stat-value" id="statTours">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Colis livrés</div>
+        <div class="stat-value" id="statDelivered">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Retours</div>
+        <div class="stat-value" id="statReturns">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total encaissé</div>
+        <div class="stat-value" id="statCollected">0 F</div>
+      </div>
+    </section>
+
+    <section class="card mb-4">
+      <h2>Profil</h2>
+      <div class="form-group">
+        <label for="editNom">Nom complet</label>
+        <input id="editNom" class="form-control">
+      </div>
+      <div class="form-group">
+        <label for="editTel">Téléphone</label>
+        <input id="editTel" class="form-control" type="tel">
+      </div>
+      <div class="form-group">
+        <label for="editZone">Zone principale</label>
+        <select id="editZone" class="form-control"></select>
+      </div>
+      <label class="checkbox-wrapper mb-4">
+        <input type="checkbox" id="editActif">
+        <span>Compte actif</span>
+      </label>
+      <button id="saveProfileBtn" class="btn btn-primary mb-3">ENREGISTRER LE PROFIL</button>
+      <a id="callBtn" class="btn btn-outline" href="#">APPELER</a>
+    </section>
+
+    <section id="pinSection" class="card mb-4">
+      <h2>Code d'accès</h2>
+      <div class="text-sm text-muted mb-3">Le code actuel n'est jamais affiché. Définissez un nouveau PIN si nécessaire.</div>
+      <div class="form-group">
+        <label for="newPin">Nouveau PIN — 4 chiffres</label>
+        <input id="newPin" class="form-control" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*">
+      </div>
+      <button id="resetPinBtn" class="btn btn-outline">RÉINITIALISER LE PIN</button>
+    </section>
+
+    <section class="card">
+      <h2>Historique des tournées</h2>
+      <div id="historyList"></div>
+    </section>
+  </main>
+
+  <script type="module" src="js/livreur-detail.js?v=1"></script>
+  <script type="module" src="js/navigation.js?v=1"></script>
+</body>
+</html>
