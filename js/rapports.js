@@ -54,7 +54,7 @@ function downloadCsv() {
     'Clôture', 'Colis', 'Chargement initial (F CFA)',
     'Ajouts (F CFA)', 'Retours confirmés (F CFA)',
     'Livraisons déduites (F CFA)', 'Autres frais (F CFA)',
-    'Net figé à la clôture (F CFA)'
+    'Net enregistré après corrections (F CFA)'
   ];
 
   const rows = archives.map(row => [
