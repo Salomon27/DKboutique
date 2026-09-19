@@ -1,5 +1,6 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
+import { enableAutoSync } from './auto-sync.js';
 import { formatFcfa, formatDate, createEmptyState, createBadge } from './page-utils.js';
 
 const PAGE_SIZE = 50;
@@ -272,6 +273,11 @@ async function init() {
     });
 
     await Promise.all([loadLivreurs(), loadArchives(true)]);
+    enableAutoSync(() => loadArchives(true), {
+      tables: ['sorties'], intervalMs: 45000,
+      shouldRefresh: () => !isLoading && archives.length <= PAGE_SIZE
+        && !document.activeElement?.matches('input, textarea, select')
+    });
   } catch (error) {
     console.error('Initialisation archives:', error);
     archiveFeedback.textContent = 'Impossible d’ouvrir les archives. Vérifiez votre connexion ou vos droits.';
