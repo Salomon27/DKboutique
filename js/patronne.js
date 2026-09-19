@@ -11,8 +11,9 @@ const elements = {
   lastRefresh:$('lastRefresh'), logoutBtn:$('logoutBtn'),
   refreshSupervision:$('refreshSupervision'),searchTour:$('searchTour'),
   zoneTourFilter:$('zoneTourFilter'),activeVisibleCount:$('activeVisibleCount'),
-  activeDescription:$('activeDescription'),supervisionError:$('supervisionError'),
-  supervisionAlert:$('supervisionAlert')
+  supervisionError:$('supervisionError'),supervisionAlert:$('supervisionAlert'),
+  activePanel:$('activePanel'),closedPanel:$('closedPanel'),activeTab:$('activeTab'),closedTab:$('closedTab'),
+  activeTabCount:$('activeTabCount'),closedTabCount:$('closedTabCount'),activeMoreBtn:$('activeMoreBtn')
 };
 
 const PAGE_SIZE = 200;
@@ -31,89 +32,147 @@ let refreshTimer = null;
 let refreshSerial = 0;
 let dataPartial = false;
 let loading = false;
+let visibleActive = 5;
+const expandedTours = new Set();
 
 const sum = (rows,key) => rows.reduce((total,row)=> total + Number(row[key]||0),0);
 
-function makeBadge(text,kind='') {
-  const badge=document.createElement('span');
-  badge.className='dk-flag'+(kind ? ' '+kind : '');
-  badge.textContent=text;
-  return badge;
+function infoCell(label, value) {
+  const cell = document.createElement('div');
+  const caption = document.createElement('span');
+  caption.textContent = label;
+  const strong = document.createElement('strong');
+  strong.textContent = String(value);
+  cell.append(caption, strong);
+  return cell;
 }
 
-function makeTourCard(tour,closed=false) {
-  const a=document.createElement('a');
-  a.className='dk-tour-item';
-  a.href=`dossier-detail.html?id=${encodeURIComponent(tour.id)}`;
-  a.setAttribute('aria-label',`Consulter le dossier de ${tour.livreur_nom||'livreur'}`);
-  const main=document.createElement('div');
-  const name=document.createElement('div');name.className='dk-tour-title';
-  name.textContent=tour.livreur_nom||'Livreur';
-  const meta=document.createElement('div');meta.className='dk-tour-meta';
-  const stamp=closed ? tour.closed_at : tour.created_at;
-  meta.textContent=`${tour.zone_nom||'Zone non renseignée'} · ${formatDate(stamp,true)} · ${Number(tour.nb_colis_total||0)} colis`;
-  const flags=document.createElement('div');flags.className='dk-tour-flags';
-  if(closed){
-    flags.append(makeBadge('CLÔTURÉE','good'));
-    flags.append(makeBadge(`${Number(tour.nb_livres||0)} livrés`));
-  }else{
-    flags.append(makeBadge(`${Number(tour.nb_livres||0)} livrés`));
-    flags.append(makeBadge(`${Number(tour.nb_en_attente||0)} en attente`,Number(tour.nb_en_attente||0)>0?'warn':''));
-    if(Number(tour.nb_retour_signale||0)>0)
-      flags.append(makeBadge(`${Number(tour.nb_retour_signale)} retours signalés`,'warn'));
-    if(Number(tour.nb_retours_confirmes||0)>0)
-      flags.append(makeBadge(`${Number(tour.nb_retours_confirmes)} retours confirmés`,'good'));
-  }
-  main.append(name,meta,flags);
+function makeTourCard(tour, closed = false) {
+  const card = document.createElement('article');
+  card.className = 'sup-item';
 
-  const right=document.createElement('div');right.className='dk-tour-right';
-  const money=document.createElement('strong');money.className='dk-tour-money';
-  money.textContent=closed && tour.montant_final!==null ? formatFcfa(tour.montant_final) : formatFcfa(tour.net_a_encaisser);
-  const see=document.createElement('span');see.className='dk-section-sub';
-  see.textContent='Voir dossier →';
-  right.append(money,see);
-  a.append(main,right);
-  return a;
+  const open = document.createElement('button');
+  open.className = 'sup-item-toggle';
+  open.type = 'button';
+  open.setAttribute('aria-expanded', String(expandedTours.has(tour.id)));
+  const label = document.createElement('div');
+  const name = document.createElement('div');
+  name.className = 'sup-item-name';
+  name.textContent = tour.livreur_nom || 'Livreur';
+  const meta = document.createElement('div');
+  meta.className = 'sup-item-meta';
+  meta.textContent = `${tour.zone_nom || 'Zone non renseignée'} · ${Number(tour.nb_colis_total || 0)} colis`;
+  label.append(name, meta);
+  const right = document.createElement('div');
+  right.className = 'sup-item-right';
+  const amount = document.createElement('strong');
+  amount.className = 'sup-item-amount';
+  amount.textContent = closed
+    ? (tour.montant_final === null ? 'Net non figé' : formatFcfa(tour.montant_final))
+    : formatFcfa(tour.net_a_encaisser);
+  const more = document.createElement('span');
+  more.className = 'sup-item-more';
+  more.textContent = 'Détails ＋';
+  right.append(amount, more);
+  open.append(label, right);
+
+  const detail = document.createElement('div');
+  detail.className = 'sup-item-detail';
+  const detailId = `supervision-${tour.id}`;
+  detail.id = detailId;
+  open.setAttribute('aria-controls', detailId);
+  if (!expandedTours.has(tour.id)) detail.classList.add('hidden');
+  else more.textContent = 'Réduire −';
+
+  const status = document.createElement('div');
+  status.className = 'sup-item-status';
+  status.textContent = closed
+    ? `CLÔTURÉE · ${formatDate(tour.closed_at, true)}`
+    : `EN COURS · ${formatDate(tour.created_at, true)}`;
+
+  const grid = document.createElement('div');
+  grid.className = 'sup-item-data';
+  grid.append(
+    infoCell('Livrés déclarés', Number(tour.nb_livres || 0)),
+    infoCell('En attente', Number(tour.nb_en_attente || 0)),
+    infoCell('Retours signalés', Number(tour.nb_retour_signale || 0)),
+    infoCell('Retours confirmés', Number(tour.nb_retours_confirmes || 0)),
+    infoCell('Chargement', formatFcfa(tour.montant_chargement)),
+    infoCell('Retours confirmés (montant)', formatFcfa(tour.montant_retours)),
+    infoCell('Déductions + frais', formatFcfa(Number(tour.deduction_livraison || 0) + Number(tour.frais_divers || 0))),
+    infoCell(closed ? 'Net figé à la clôture' : 'Net théorique actuel',
+      closed && tour.montant_final !== null ? formatFcfa(tour.montant_final) : formatFcfa(tour.net_a_encaisser))
+  );
+
+  const dossier = document.createElement('a');
+  dossier.className = 'btn btn-outline';
+  dossier.href = `dossier-detail.html?id=${encodeURIComponent(tour.id)}`;
+  dossier.textContent = 'Ouvrir le dossier · photos et opérations →';
+  detail.append(status, grid, dossier);
+
+  open.addEventListener('click', () => {
+    const expand = open.getAttribute('aria-expanded') !== 'true';
+    open.setAttribute('aria-expanded', String(expand));
+    detail.classList.toggle('hidden', !expand);
+    more.textContent = expand ? 'Réduire −' : 'Détails ＋';
+    if (expand) expandedTours.add(tour.id);
+    else expandedTours.delete(tour.id);
+  });
+  card.append(open, detail);
+  return card;
 }
 
-function renderList(target,rows,closed=false) {
+function renderList(target, rows, closed = false) {
   target.replaceChildren();
-  if(!rows.length){
-    target.appendChild(createEmptyState(closed?'Aucune clôture récente.':'Aucune tournée pour ces filtres.'));
+  if (!rows.length) {
+    target.appendChild(createEmptyState(closed
+      ? 'Aucune clôture récente.' : 'Aucune tournée pour ces filtres.'));
     return;
   }
-  const fragment=document.createDocumentFragment();
-  rows.forEach(t=>fragment.appendChild(makeTourCard(t,closed)));
+  const fragment = document.createDocumentFragment();
+  rows.forEach(tour => fragment.appendChild(makeTourCard(tour, closed)));
   target.appendChild(fragment);
 }
 
 function render() {
-  elements.argentDehors.textContent=formatFcfa(sum(activeTours,'net_a_encaisser'));
-  elements.activeCount.textContent=String(activeTours.length);
-  elements.colisCount.textContent=String(sum(activeTours,'nb_colis_total'));
-  elements.deliveredCount.textContent=String(sum(activeTours,'nb_livres'));
-  elements.returnsSignaled.textContent=String(sum(activeTours,'nb_retour_signale'));
-  elements.returnsConfirmed.textContent=String(sum(activeTours,'nb_retours_confirmes'));
-  elements.pendingCount.textContent=String(sum(activeTours,'nb_en_attente'));
+  elements.argentDehors.textContent = formatFcfa(sum(activeTours, 'net_a_encaisser'));
+  elements.activeCount.textContent = String(activeTours.length);
+  elements.colisCount.textContent = String(sum(activeTours, 'nb_colis_total'));
+  elements.deliveredCount.textContent = String(sum(activeTours, 'nb_livres'));
+  elements.returnsSignaled.textContent = String(sum(activeTours, 'nb_retour_signale'));
+  elements.returnsConfirmed.textContent = String(sum(activeTours, 'nb_retours_confirmes'));
+  elements.pendingCount.textContent = String(sum(activeTours, 'nb_en_attente'));
+  elements.activeTabCount.textContent = String(activeTours.length);
+  elements.closedTabCount.textContent = String(recentClosed.length);
 
-  const query=elements.searchTour.value.trim().toLocaleLowerCase('fr-FR');
-  const zone=elements.zoneTourFilter.value;
-  const shown=activeTours.filter(t=> (!zone||t.zone_id===zone)
-    && (!query||[t.livreur_nom,t.zone_nom].some(value=>String(value||'').toLocaleLowerCase('fr-FR').includes(query))));
-  elements.activeVisibleCount.textContent=`${shown.length} / ${activeTours.length}`;
-  elements.activeDescription.textContent='Ouvrir un dossier : photos, déclarations et opérations financières.';
-  renderList(elements.activeList,shown);
-  renderList(elements.closedList,recentClosed,true);
+  const query = elements.searchTour.value.trim().toLocaleLowerCase('fr-FR');
+  const zone = elements.zoneTourFilter.value;
+  const shown = activeTours.filter(tour => (!zone || tour.zone_id === zone)
+    && (!query || [tour.livreur_nom, tour.zone_nom].some(value =>
+      String(value || '').toLocaleLowerCase('fr-FR').includes(query))));
 
-  const problems=[];
-  const waiting=sum(activeTours,'nb_en_attente');
-  const reported=sum(activeTours,'nb_retour_signale');
-  if(waiting) problems.push(`${waiting} colis en attente de décision.`);
-  if(reported) problems.push(`${reported} retour(s) signalé(s) : vérifier leur confirmation dans les dossiers.`);
-  if(dataPartial) problems.push('Plus de 2 000 tournées actives : indicateurs partiels. Affinez la supervision.');
-  elements.supervisionAlert.classList.toggle('hidden',!problems.length);
-  elements.supervisionAlert.classList.toggle('good',!problems.length);
-  elements.supervisionAlert.textContent=problems.join(' ');
+  elements.activeVisibleCount.textContent = `${shown.length} tournée(s)`;
+  renderList(elements.activeList, shown.slice(0, visibleActive));
+  elements.activeMoreBtn.classList.toggle('hidden', shown.length <= visibleActive);
+  elements.activeMoreBtn.textContent = `Voir davantage · ${shown.length - visibleActive} restantes`;
+  renderList(elements.closedList, recentClosed, true);
+
+  const waiting = sum(activeTours, 'nb_en_attente');
+  const partial = dataPartial;
+  elements.supervisionAlert.classList.toggle('hidden', !waiting && !partial);
+  elements.supervisionAlert.textContent = [
+    waiting ? `${waiting} colis en attente · ouvrir une tournée pour les vérifier.` : '',
+    partial ? 'Données partielles : plus de 2 000 tournées en cours.' : ''
+  ].filter(Boolean).join(' ');
+}
+
+function selectTab(closed) {
+  elements.activePanel.classList.toggle('hidden', closed);
+  elements.closedPanel.classList.toggle('hidden', !closed);
+  elements.activeTab.classList.toggle('active', !closed);
+  elements.closedTab.classList.toggle('active', closed);
+  elements.activeTab.setAttribute('aria-pressed', String(!closed));
+  elements.closedTab.setAttribute('aria-pressed', String(closed));
 }
 
 function populateZones() {
@@ -203,8 +262,20 @@ async function init(){
     await auth.logout();
   });
   elements.refreshSupervision.addEventListener('click',()=>loadDashboard());
-  elements.searchTour.addEventListener('input',render);
-  elements.zoneTourFilter.addEventListener('change',render);
+  elements.searchTour.addEventListener('input', () => {
+    visibleActive = 5;
+    render();
+  });
+  elements.zoneTourFilter.addEventListener('change', () => {
+    visibleActive = 5;
+    render();
+  });
+  elements.activeMoreBtn.addEventListener('click', () => {
+    visibleActive += 10;
+    render();
+  });
+  elements.activeTab.addEventListener('click', () => selectTab(false));
+  elements.closedTab.addEventListener('click', () => selectTab(true));
   await loadDashboard();
   setupRealtime();
 }
