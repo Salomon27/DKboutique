@@ -1,5 +1,6 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
+import { enableAutoSync } from './auto-sync.js';
 import { formatFcfa, createEmptyState } from './page-utils.js';
 
 const $ = id => document.getElementById(id);
@@ -181,5 +182,9 @@ async function init(){
   });
   elements.refreshTeamBtn.addEventListener('click',()=>loadLivreurs());
   await Promise.allSettled([loadZones(),loadLivreurs()]);
+  enableAutoSync(() => loadLivreurs(), {
+    tables: ['livreurs', 'sorties', 'colis'], intervalMs: 30000,
+    shouldRefresh: () => elements.createSection.classList.contains('hidden') && !document.activeElement?.matches('input, textarea')
+  });
 }
 document.addEventListener('DOMContentLoaded',init);
