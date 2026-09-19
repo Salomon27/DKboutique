@@ -30,9 +30,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const hasSession = await auth.checkActiveSession();
             if (hasSession) {
-                const state = auth.getUIState();
-                if (state && state.role) {
-                    auth.redirectByRole(state.role);
+                const role = await auth.getCurrentRole();
+                if (role) {
+                    auth.redirectByRole(role);
                 } else {
                     await auth.logout();
                 }
