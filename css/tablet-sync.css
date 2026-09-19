@@ -1,0 +1,52 @@
+/* Tablet + live sync status. 768px+ design preserves finger-sized controls. */
+.dk-sync-state {
+  flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
+  margin-left:auto;color:#166534;font-size:.64rem;font-weight:850;
+  padding:6px 8px;background:#F0FDF4;border:1px solid #DCFCE7;
+  border-radius:999px;white-space:nowrap;
+}
+.dk-sync-state::before {content:"";width:6px;height:6px;flex:0 0 6px;border-radius:50%;background:currentColor;}
+.dk-sync-state[data-state="syncing"] {color:#235CCF;background:#EFF6FF;border-color:#DBEAFE;}
+.dk-sync-state[data-state="offline"],.dk-sync-state[data-state="error"] {color:#9F1239;background:#FFF1F2;border-color:#FFE4E6;}
+.dk-management .app-header .dk-sync-state {margin-left:auto;}
+.dk-management .app-header #logoutBtn {margin-left:0!important;}
+body.point-page .app-header .dk-sync-state,body.dispatch-page .app-header .dk-sync-state {margin-left:0;}
+@media(max-width:550px){
+  .dk-sync-state {width:20px;height:20px;min-width:20px;overflow:hidden;font-size:0;padding:0;justify-content:center;gap:0;margin-left:auto;}
+  .dk-sync-state::before {width:7px;height:7px;flex-basis:7px;}
+  .dk-management .app-header .dk-sync-state {margin-left:auto;}
+}
+@media(min-width:768px) {
+  .page-shell {max-width:1020px;padding:22px 24px 60px;}
+  .app-header {max-width:1020px;width:min(calc(100% - 48px),1020px);}
+  .container {max-width:850px;padding:22px 24px 60px;}
+  .page-title-row {margin-bottom:18px;}
+  .stats-grid {gap:14px;}
+  .stat-card {padding:20px;}
+  .stat-value {font-size:clamp(1.32rem,2.4vw,2rem);}
+  .form-control,select,input[type="number"],input[type="search"] {font-size:16px;}
+  .dk-nav-drawer {width:340px;padding:26px 20px;}
+  .dk-nav-link {min-height:49px;display:flex;align-items:center;}
+  .livreur-shell {max-width:970px!important;padding:20px 24px 44px!important;}
+  .livreur-shell #colisList {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:16px;}
+  .livreur-shell #colisList .colis-card {min-width:0;margin-bottom:0;}
+  .livreur-shell .photo-container {aspect-ratio:4/3;}
+  .livreur-shell .parcel-actions .btn {min-height:52px;}
+  .livreur-shell .driver-identity {margin:4px 0 18px;}
+  .livreur-shell .tour-summary {padding:22px;}
+  .livreur-shell .progress-card {padding:18px 20px;}
+  .point-page .point-shell {max-width:1040px;padding:18px 22px 115px;}
+  .point-page .point-gallery-grid {grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
+  .point-page .point-finance-strip {gap:12px;}
+  .point-page .point-gallery-section {padding:18px;}
+  .dk-management .dk-manage-shell {max-width:1040px;padding:20px 22px 60px;}
+  .dk-management.sup-page .dk-manage-shell {max-width:850px;}
+  .dk-management .dk-driver-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+  .dispatch-page .dispatch-main {max-width:1040px;}
+  .dispatch-page.stage-select .dispatch-form-area {padding-inline:30px;}
+  .dispatch-page.stage-preview .dispatch-list-panel,.dispatch-page.stage-queue .dispatch-list-panel {padding-inline:22px;}
+  .dispatch-page .dispatch-photo-grid {grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;}
+}
+@media(min-width:1100px) {
+  .livreur-shell #colisList {grid-template-columns:repeat(3,minmax(0,1fr));}
+}
