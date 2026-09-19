@@ -1,6 +1,7 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
 import { enableAutoSync } from './auto-sync.js';
+import { correctParcelEntry } from './parcel-corrections.js';
 import { formatFcfa, formatDate, getQueryParam, signedPhotoUrl, createEmptyState, createBadge } from './page-utils.js';
 
 const sortieId = getQueryParam('id');
@@ -19,6 +20,9 @@ const parcelTitle = el('parcelTitle');
 const auditPanel = el('auditPanel');
 const auditTitle = el('auditTitle');
 const auditDetails = el('auditDetails');
+const correctionsPanel = el('correctionsPanel');
+const correctionsList = el('correctionsList');
+const correctionsCount = el('correctionsCount');
 
 const photoViewer = el('photoViewer');
 const closeViewerBtn = el('closeViewerBtn');
@@ -28,6 +32,9 @@ let resume = null;
 let colis = [];
 let ops = [];
 let isClosed = false;
+let canCorrect = false;
+let correctionAvailable = false;
+let parcelCorrections = [];
 
 function money(value) {
   return Number(value ?? 0);
@@ -118,7 +125,9 @@ function renderSummary() {
   el('ledgerReturns').textContent = `-${formatFcfa(resume.montant_retours)}`;
   el('ledgerDelivery').textContent = `-${formatFcfa(resume.deduction_livraison)}`;
   el('ledgerFees').textContent = `-${formatFcfa(resume.frais_divers)}`;
-  el('netLabel').textContent = isClosed ? 'Net figé à la clôture' : 'Net actuel (provisoire)';
+  el('netLabel').textContent = isClosed
+    ? (parcelCorrections.length ? 'Net rectifié après clôture' : 'Net figé à la clôture')
+    : 'Net actuel (provisoire)';
   el('ledgerNet').textContent = isClosed && resume.montant_final !== null
     ? formatFcfa(resume.montant_final)
     : formatFcfa(resume.net_a_encaisser);
@@ -204,6 +213,25 @@ function renderAudit() {
       auditDetails.appendChild(p);
     });
   }
+}
+
+function renderCorrections() {
+  correctionsList.replaceChildren();
+  correctionsPanel.classList.toggle('hidden', !parcelCorrections.length);
+  correctionsCount.textContent = parcelCorrections.length ? '· ' + parcelCorrections.length : '';
+  parcelCorrections.forEach(correction => {
+    const row = document.createElement('div');
+    row.className = 'correction-audit-item';
+    const title = document.createElement('strong');
+    title.textContent = formatDate(correction.cree_at, true)
+      + ' · Colis de ' + formatFcfa(correction.valeur) + ' supprimé pour erreur de saisie';
+    const detail = document.createElement('div');
+    detail.textContent = 'Motif : ' + correction.motif
+      + ' · Net avant : ' + formatFcfa(correction.montant_avant)
+      + ' · Net corrigé : ' + formatFcfa(correction.montant_apres);
+    row.append(title, detail);
+    correctionsList.appendChild(row);
+  });
 }
 
 function renderTimeline() {
@@ -339,6 +367,29 @@ async function renderParcels() {
       body.appendChild(note);
     }
 
+    if (canCorrect && correctionAvailable) {
+      const correctionButton = document.createElement('button');
+      correctionButton.className = 'dossier-correct-btn';
+      correctionButton.type = 'button';
+      correctionButton.textContent = 'Corriger une erreur de saisie';
+      correctionButton.addEventListener('click', async () => {
+        await correctParcelEntry(parcel, {
+          setBusy: busy => {
+            correctionButton.disabled = busy;
+            correctionButton.textContent = busy ? 'Correction…' : 'Corriger une erreur de saisie';
+          },
+          notify: (message, error) => {
+            if (error) window.alert(message);
+            else {
+              const status = document.getElementById('dossierCorrectionMessage');
+              if (status) status.textContent = message;
+            }
+          },
+          after: () => loadDossier()
+        });
+      });
+      body.appendChild(correctionButton);
+    }
     card.append(imageContainer, body);
     parcelGrid.appendChild(card);
   });
@@ -386,6 +437,11 @@ async function loadDossier() {
   colis = colisRes.data || [];
   ops = opsRes.data || [];
 
+  const { data: correctedRows, error: correctionsError } = await supabase
+    .rpc('consulter_corrections_colis', { p_sortie_id: sortieId });
+  correctionAvailable = !correctionsError;
+  parcelCorrections = correctionAvailable ? correctedRows || [] : [];
+  renderCorrections();
   renderSummary();
   renderAudit();
   renderTimeline();
@@ -403,6 +459,7 @@ async function init() {
 
   try {
     const role = await auth.getCurrentRole();
+    canCorrect = role === 'gerant';
     if (role === 'gerant') {
       const profileId = await auth.getCurrentProfileId();
       if (!profileId) throw new Error('Profil Gérant indisponible.');
