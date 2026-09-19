@@ -7,49 +7,100 @@
   <meta name="theme-color" content="#F4F7FB">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    .archive-intro {padding:18px 20px;margin-bottom:14px;background:radial-gradient(circle at 96% 0%,rgba(37,99,235,.12),transparent 45%),#fff;}
+    .archive-kicker {font-size:.7rem;color:var(--primary);font-weight:900;letter-spacing:.08em;text-transform:uppercase;}
+    .archive-intro h2 {font-size:1.35rem;margin:5px 0 4px;}
+    .archive-intro p {color:var(--text-muted);font-size:.82rem;}
+    .archive-toolbar {display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:15px;margin-bottom:14px;}
+    .archive-toolbar .wide {grid-column:1/-1;}
+    .archive-toolbar label {font-size:.72rem;color:var(--text-muted);font-weight:800;display:block;margin-bottom:5px;}
+    .archive-toolbar .form-control {width:100%;}
+    .archive-toolbar-actions {grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+    .archive-toolbar-actions button {width:auto;font-size:.8rem;min-height:42px;}
+    .archive-stats {margin-bottom:14px;}
+    .archive-stat-value {font-size:1.26rem;overflow-wrap:anywhere;}
+    .archive-list-head {display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+    .archive-list-head h2 {font-size:1rem;margin:0;}
+    .archive-count {font-size:.75rem;font-weight:800;color:var(--text-muted);}
+    .archive-note {font-size:.74rem;color:var(--text-muted);margin:0 0 12px;}
+    .archive-item {display:flex;gap:12px;justify-content:space-between;align-items:center;padding:14px 4px;text-decoration:none;border-bottom:1px solid var(--border);color:var(--text-main);border-radius:10px;}
+    .archive-item:last-child {border:0;}
+    .archive-item:hover,.archive-item:focus-visible {background:#F8FAFC;outline-offset:3px;}
+    .archive-item-main {min-width:0;flex:1;}
+    .archive-item-title {font-size:.91rem;font-weight:900;overflow-wrap:anywhere;}
+    .archive-item-meta {font-size:.72rem;color:var(--text-muted);margin-top:4px;line-height:1.55;}
+    .archive-item-right {text-align:right;white-space:nowrap;}
+    .archive-item-amount {font-size:.95rem;font-weight:900;}
+    .archive-item-right .badge {margin-top:6px;}
+    .archive-footer {display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:14px;}
+    .archive-footer .btn {max-width:340px;}
+    .archive-feedback {font-size:.76rem;color:var(--text-muted);text-align:center;}
+    @media (max-width:380px) {
+      .archive-toolbar {grid-template-columns:1fr;}
+      .archive-toolbar .wide,.archive-toolbar-actions {grid-column:1;}
+      .archive-item {align-items:flex-start;}
+      .archive-item-amount {font-size:.82rem;}
+    }
+  </style>
 </head>
 <body>
   <header class="app-header">
     <div>
-      <h1 class="header-title" style="margin:0;">ARCHIVES</h1>
-      <div class="text-sm text-muted">Tournées clôturées</div>
+      <div class="text-sm text-muted" style="font-weight:800;margin-bottom:3px;">DK BOUTIQUE</div>
+      <h1 class="header-title">Archives</h1>
     </div>
+    <a href="dashboard.html" id="backLink" class="btn btn-outline small-action">Retour</a>
   </header>
 
   <main class="page-shell">
-    <div class="toolbar">
-      <input id="searchInput" class="form-control" placeholder="Rechercher livreur ou zone">
-      <input id="dateInput" class="form-control" type="date">
-      <select id="livreurFilter" class="form-control">
-        <option value="">Tous les livreurs</option>
-      </select>
-    </div>
+    <section class="card archive-intro">
+      <div class="archive-kicker">Historique des tournées</div>
+      <h2>Dossiers clôturés</h2>
+      <p>Consultez les montants figés, retrouvez un livreur et ouvrez chaque dossier pour contrôler ses opérations.</p>
+    </section>
 
-    <section class="stats-grid mb-4">
-      <div class="stat-card">
-        <div class="stat-label">Dossiers</div>
-        <div class="stat-value" id="statCount">0</div>
+    <section class="card archive-toolbar" aria-label="Filtres des archives">
+      <div class="wide">
+        <label for="searchInput">Rechercher un livreur ou une zone</label>
+        <input id="searchInput" class="form-control" type="search" maxlength="80" placeholder="Nom ou zone…" autocomplete="off">
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Net encaissé</div>
-        <div class="stat-value" id="statNet">0 F</div>
+      <div>
+        <label for="dateInput">Date de clôture</label>
+        <input id="dateInput" class="form-control" type="date">
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Colis</div>
-        <div class="stat-value" id="statColis">0</div>
+      <div>
+        <label for="livreurFilter">Livreur</label>
+        <select id="livreurFilter" class="form-control"><option value="">Tous les livreurs</option></select>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Retours</div>
-        <div class="stat-value" id="statRetours">0 F</div>
+      <div class="archive-toolbar-actions">
+        <button id="resetFiltersBtn" type="button" class="btn btn-outline">Réinitialiser</button>
+        <button id="exportBtn" type="button" class="btn btn-outline" disabled>Exporter les dossiers chargés (CSV)</button>
       </div>
+    </section>
+
+    <section class="stats-grid archive-stats" aria-label="Totaux des dossiers affichés">
+      <div class="stat-card"><div class="stat-label">Dossiers affichés</div><div class="stat-value archive-stat-value" id="statCount">0</div></div>
+      <div class="stat-card"><div class="stat-label">Net encaissé affiché</div><div class="stat-value archive-stat-value" id="statNet">0 F</div></div>
+      <div class="stat-card"><div class="stat-label">Colis affichés</div><div class="stat-value archive-stat-value" id="statColis">0</div></div>
+      <div class="stat-card"><div class="stat-label">Retours affichés</div><div class="stat-value archive-stat-value" id="statRetours">0 F</div></div>
     </section>
 
     <section class="card">
+      <div class="archive-list-head">
+        <h2>Dossiers enregistrés</h2>
+        <span id="resultCount" class="archive-count" aria-live="polite">Chargement…</span>
+      </div>
+      <p class="archive-note" id="statsNotice">Les totaux concernent uniquement les dossiers affichés.</p>
       <div id="archiveList"></div>
+      <div class="archive-footer">
+        <button id="loadMoreBtn" type="button" class="btn btn-outline hidden">Charger davantage</button>
+        <div id="archiveFeedback" class="archive-feedback" aria-live="polite"></div>
+      </div>
     </section>
   </main>
 
-  <script type="module" src="js/rapports.js?v=1"></script>
+  <script type="module" src="js/rapports.js?v=2"></script>
   <script type="module" src="js/navigation.js?v=1"></script>
 </body>
 </html>
