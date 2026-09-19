@@ -1,5 +1,6 @@
 import { auth } from './auth.js';
 import { supabase } from './config.js';
+import { enableAutoSync } from './auto-sync.js';
 import { formatFcfa, formatDate, signedPhotoUrl, createEmptyState, createBadge } from './page-utils.js';
 
 const searchInput = document.getElementById('searchInput');
@@ -135,6 +136,10 @@ async function init() {
   statusFilter.addEventListener('change', () => render().catch(console.error));
   sourceFilter.addEventListener('change', () => render().catch(console.error));
 
+  enableAutoSync(() => loadData(), {
+    tables: ['colis', 'sorties', 'sortie_operations'], intervalMs: 30000,
+    shouldRefresh: () => !document.activeElement?.matches('input, select, textarea')
+  });
   try { await loadData(); }
   catch (err) {
     console.error(err);
