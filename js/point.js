@@ -33,6 +33,23 @@ const pointContent = document.getElementById('pointContent');
 const livreurName = document.getElementById('livreurName');
 const zoneName = document.getElementById('zoneName');
 const chargementAmount = document.getElementById('chargementAmount');
+const mainNet = document.getElementById('mainNet');
+const miniChargement = document.getElementById('miniChargement');
+const miniAjouts = document.getElementById('miniAjouts');
+const miniRetours = document.getElementById('miniRetours');
+const miniFrais = document.getElementById('miniFrais');
+const pointTourState = document.getElementById('pointTourState');
+const refreshPointBtn = document.getElementById('refreshPointBtn');
+const galleryGrid = document.getElementById('galleryGrid');
+const galleryCount = document.getElementById('galleryCount');
+const galleryFilters = document.getElementById('galleryFilters');
+const pointViewer = document.getElementById('pointViewer');
+const pointViewerTitle = document.getElementById('pointViewerTitle');
+const pointViewerImage = document.getElementById('pointViewerImage');
+const pointViewerDesc = document.getElementById('pointViewerDesc');
+const pointViewerClose = document.getElementById('pointViewerClose');
+const pointViewerPrev = document.getElementById('pointViewerPrev');
+const pointViewerNext = document.getElementById('pointViewerNext');
 const totalColisCount = document.getElementById('totalColisCount');
 const livresCount = document.getElementById('livresCount');
 const retoursSignalesCount = document.getElementById('retoursSignalesCount');
@@ -88,6 +105,11 @@ let realtimeChannel = null;
 let refreshTimer = null;
 let previewUrl = null;
 let currentProfileId = null;
+let galleryFilter = 'tous';
+let viewerItems = [];
+let viewerIndex = -1;
+let lastViewerTrigger = null;
+let renderVersion = 0;
 
 const signedUrlCache = new Map();
 
@@ -100,15 +122,15 @@ function showToast(message) {
   toast.className = 'point-toast';
   toast.textContent = message;
   toastStack.appendChild(toast);
-  gsap.to(toast, { opacity: 1, y: 4, duration: .2 });
-  setTimeout(() => {
-    gsap.to(toast, {
-      opacity: 0,
-      y: -4,
-      duration: .2,
-      onComplete: () => toast.remove()
-    });
-  }, 2600);
+  if (typeof gsap !== 'undefined') {
+    gsap.to(toast, { opacity: 1, y: 4, duration: .2 });
+    setTimeout(() => gsap.to(toast, {
+      opacity: 0, duration: .2, onComplete: () => toast.remove()
+    }), 2600);
+  } else {
+    toast.style.opacity = '1';
+    setTimeout(() => toast.remove(), 2900);
+  }
 }
 
 function clearPreview() {
@@ -141,6 +163,45 @@ async function init() {
 }
 
 function setupUI() {
+  refreshPointBtn.addEventListener('click', async () => {
+    refreshPointBtn.disabled = true;
+    try {
+      if (currentSortieId) await refreshPointData();
+      await loadSortiesEnCours();
+      showToast('Données actualisées.');
+    } catch (error) {
+      console.error('Actualisation du Point:', error);
+      displayLoadError(error);
+    } finally {
+      refreshPointBtn.disabled = false;
+    }
+  });
+
+  galleryFilters.addEventListener('click', event => {
+    const filterButton = event.target.closest('button[data-filter]');
+    if (!filterButton) return;
+    galleryFilter = filterButton.dataset.filter;
+    galleryFilters.querySelectorAll('.point-filter').forEach(button => {
+      const active = button === filterButton;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+    renderGallery().catch(error => console.error('Filtre colis:', error));
+  });
+
+  pointViewerClose.addEventListener('click', closePhotoViewer);
+  pointViewer.addEventListener('click', event => {
+    if (event.target === pointViewer) closePhotoViewer();
+  });
+  pointViewerPrev.addEventListener('click', () => navigateViewer(-1));
+  pointViewerNext.addEventListener('click', () => navigateViewer(1));
+  document.addEventListener('keydown', event => {
+    if (!pointViewer.classList.contains('open')) return;
+    if (event.key === 'Escape') closePhotoViewer();
+    if (event.key === 'ArrowLeft') navigateViewer(-1);
+    if (event.key === 'ArrowRight') navigateViewer(1);
+  });
+
   tourneeSelect.addEventListener('change', async () => {
     const id = tourneeSelect.value;
 
@@ -222,11 +283,21 @@ function setupUI() {
 
 function resetSelection() {
   cleanupRealtime();
+  closePhotoViewer();
+  ++renderVersion;
+  galleryGrid.replaceChildren();
+  galleryCount.textContent = '0 colis';
   currentSortieId = null;
   currentResume = null;
   currentColis = [];
   currentOps = [];
   selectedForRetour.clear();
+  galleryFilter = 'tous';
+  galleryFilters.querySelectorAll('.point-filter').forEach(button => {
+    const active = button.dataset.filter === 'tous';
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
   pointContent.classList.add('hidden');
   noSortieState.classList.remove('hidden');
   closeBar.classList.remove('visible');
@@ -334,41 +405,49 @@ async function renderAll() {
   renderTimeline();
   renderFinance();
   renderControl();
-  await Promise.all([renderRetours(), renderLivraisons()]);
+  // Show the gallery immediately; signed photos load asynchronously.
+  await Promise.all([renderGallery(), renderRetours(), renderLivraisons()]);
 }
 
 function renderHeader() {
   livreurName.textContent = currentResume.livreur_nom || 'Livreur';
   zoneName.textContent = currentResume.zone_nom || 'Zone';
   chargementAmount.textContent = formatFcfa(currentResume.montant_chargement);
+  mainNet.textContent = formatFcfa(currentResume.net_a_encaisser);
+  miniChargement.textContent = formatFcfa(currentResume.montant_chargement);
+  miniAjouts.textContent = '+' + formatFcfa(currentResume.montant_ajouts);
+  miniRetours.textContent = '−' + formatFcfa(currentResume.montant_retours);
+  miniFrais.textContent = '−' + formatFcfa(Number(currentResume.deduction_livraison || 0) + Number(currentResume.frais_divers || 0));
   totalColisCount.textContent = String(Number(currentResume.nb_colis_total || 0));
   livresCount.textContent = String(Number(currentResume.nb_livres || 0));
   retoursSignalesCount.textContent = String(Number(currentResume.nb_retour_signale || 0));
   attenteCount.textContent = String(Number(currentResume.nb_en_attente || 0));
 }
 
-async function photoElement(photoPath) {
-  if (!photoPath) {
-    const empty = document.createElement('div');
-    empty.className = 'point-thumb-empty';
-    empty.textContent = 'Pas de photo';
-    return empty;
+async function photoElement(colis) {
+  const wrapper = document.createElement('button');
+  wrapper.type = 'button';
+  wrapper.className = 'point-thumb-button';
+  wrapper.setAttribute('aria-label', 'Agrandir la photo du colis');
+
+  const url = await getSignedPhotoUrl(colis.photo_path);
+  if (!url) {
+    const missing = document.createElement('div');
+    missing.className = 'point-thumb-empty';
+    missing.textContent = 'Photo absente';
+    wrapper.appendChild(missing);
+    wrapper.disabled = true;
+    return wrapper;
   }
 
   const img = document.createElement('img');
   img.className = 'point-thumb';
-  img.alt = 'Colis';
-
-  const url = await getSignedPhotoUrl(photoPath);
-  if (url) img.src = url;
-  else {
-    const empty = document.createElement('div');
-    empty.className = 'point-thumb-empty';
-    empty.textContent = 'Photo indisponible';
-    return empty;
-  }
-
-  return img;
+  img.alt = 'Photo du colis';
+  img.loading = 'lazy';
+  img.src = url;
+  wrapper.appendChild(img);
+  wrapper.addEventListener('click', () => openPhotoViewerForColis(colis, wrapper));
+  return wrapper;
 }
 
 async function renderRetours() {
@@ -398,7 +477,7 @@ async function renderRetours() {
     const row = document.createElement('div');
     row.className = 'point-colis-row';
 
-    row.appendChild(await photoElement(colis.photo_path));
+    row.appendChild(await photoElement(colis));
 
     const main = document.createElement('div');
     main.className = 'point-colis-main';
@@ -667,6 +746,7 @@ function renderTimeline() {
 }
 
 function renderFinance() {
+  mainNet.textContent = formatFcfa(currentResume.net_a_encaisser);
   recapChargement.textContent = formatFcfa(currentResume.montant_initial);
   recapAjouts.textContent = `+${formatFcfa(currentResume.montant_ajouts)}`;
   recapRetours.textContent = `-${formatFcfa(currentResume.montant_retours)}`;
